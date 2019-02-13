@@ -20,7 +20,7 @@
     {if $time_records}
       <table class="mobile-table-details">
       {foreach $time_records as $record}
-      <tr bgcolor="{cycle values="#ccccce,#f5f5f5"}" {if !$record.billable} class="not_billable" {/if}>
+      <tr bgcolor="{cycle values="#f5f5f5,#ffffff"}" {if !$record.billable} class="not_billable" {/if}>
 {if ($smarty.const.MODE_PROJECTS == $user->tracking_mode || $smarty.const.MODE_PROJECTS_AND_TASKS == $user->tracking_mode)}
         <td valign="top">{$record.project|escape}</td>
 {/if}
@@ -48,12 +48,16 @@
   <tr>
     <td valign="top">
     <table border="0">
+{if $user_dropdown}
+      <tr><td>{$i18n.label.user}:</td></tr>
+      <tr><td>{$forms.timeRecordForm.user.control}</td></tr>
+{/if}
 {if $user->isPluginEnabled('cl')}
-    <tr><td>{$i18n.label.client}:</td></tr>
-    <tr><td>{$forms.timeRecordForm.client.control}</td></tr>
+      <tr><td>{$i18n.label.client}:</td></tr>
+      <tr><td>{$forms.timeRecordForm.client.control}</td></tr>
 {/if}
 {if $user->isPluginEnabled('iv')}
-    <tr><td><label>{$forms.timeRecordForm.billable.control}{$i18n.form.time.billable}</label></td></tr>
+      <tr><td><label>{$forms.timeRecordForm.billable.control}{$i18n.form.time.billable}</label></td></tr>
 {/if}
 {if ($custom_fields && $custom_fields->fields[0])}
       <tr><td>{$custom_fields->fields[0]['label']|escape}:</td></tr>

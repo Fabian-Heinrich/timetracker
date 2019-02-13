@@ -165,7 +165,7 @@ function check_extension($ext)
 // isTrue is a helper function to return correct false for older config.php values defined as a string 'false'.
 function isTrue($val)
 {
-  return ($val == false || $val === 'false') ? false : true;
+  return (defined($val) && constant($val) === true);
 }
 
 // ttValidString is used to check user input to validate a string.
@@ -226,7 +226,7 @@ function ttValidFloat($val, $emptyValid = false)
     return ($emptyValid ? true : false);
     
   global $user;
-  $decimal = $user->decimal_mark;
+  $decimal = $user->getDecimalMark();
 	
   if (!preg_match('/^-?[0-9'.$decimal.']+$/', $val))
     return false;
@@ -308,22 +308,101 @@ function ttValidCronSpec($val)
   return true;
 }
 
-// ttAccessCheck is used to check whether user is allowed to proceed. This function is used
-// as an initial check on all publicly available pages.
-function ttAccessCheck($required_rights)
+// ttValidCondition is used to check user input to validate a notification condition.
+function ttValidCondition($val, $emptyValid = true)
+{
+  $val = trim($val);
+  if (strlen($val) == 0)
+    return ($emptyValid ? true : false);
+
+  // String must not be XSS evil (to insert JavaScript).
+  if (stristr($val, '<script>') || stristr($val, '<script '))
+    return false;
+
+  if (!preg_match("/^count\s?(=|[<>]=?|<>)\s?\d+$/", $val))
+    return false;
+
+  return true;
+}
+
+// ttValidIP is used to check user input to validate a comma-separated
+// list of IP subnet "prefixes", for example 192.168.0 (note: no .* in the end).
+// We keep regexp checks here simple - they are not precise.
+// For example, IPv4-mapped IPv6 addresses will fail. This may need to be fixed.
+function ttValidIP($val, $emptyValid = false)
+{
+  $val = trim($val);
+  if (strlen($val) == 0 && $emptyValid)
+    return true;
+
+  $subnets = explode(',', $val);
+  foreach ($subnets as $subnet) {
+    $ipv4 = preg_match('/^\d\d?\d?(\.\d\d?\d?){0,3}\.?$/', $subnet); // Not precise check.
+    $ipv6 = preg_match('/^([0-9a-fA-F]{4})(:[0-9a-fA-F]{4}){0,7}$/', $subnet); // Not precise check.
+    if (!$ipv4 && !$ipv6)
+      return false;
+  }
+  return true;
+}
+
+// ttAccessAllowed checks whether user is allowed access to a particular page.
+// It is used as an initial check on all publicly available pages
+// (except login.php, register.php, and others where we don't have to check).
+function ttAccessAllowed($required_right)
 {
   global $auth;
   global $user;
-  
+
   // Redirect to login page if user is not authenticated.
   if (!$auth->isAuthenticated()) {
     header('Location: login.php');
     exit();
   }
-  
-  // Check rights.
-  if (!($required_rights & $user->rights))
-    return false;
-    
-  return true;
+
+  // Check IP restriction, if set.
+  if ($user->allow_ip && !$user->can('override_allow_ip')) {
+    $access_allowed = false;
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $allowed_ip_array = explode(',', $user->allow_ip);
+    foreach ($allowed_ip_array as $allowed_ip) {
+      $len = strlen($allowed_ip);
+      if (substr($user_ip, 0, $len) === $allowed_ip) { // startsWith check.
+         $access_allowed = true;
+         break;
+      }
+    }
+    if (!$access_allowed) return false;
+  }
+
+  // Check if user has the right.
+  if (in_array($required_right, $user->rights)) {
+    import('ttUserHelper');
+    ttUserHelper::updateLastAccess();
+    return true;
+  }
+
+  return false;
+}
+
+// ttStartsWith functions checks if a string starts with a given substring.
+function ttStartsWith($string, $startString)
+{
+    $len = strlen($startString);
+    return (substr($string, 0, $len) === $startString);
+}
+
+// ttEndsWith functions checks if a string ends with a given substring.
+function ttEndsWith($string, $endString)
+{
+    $len = strlen($endString);
+    if ($len == 0) return true;
+    return (substr($string, -$len) === $endString);
+}
+
+// ttDateToUserFormat converts a date from database format to user format.
+function ttDateToUserFormat($date)
+{
+  global $user;
+  $o_date = new DateAndTime(DB_DATEFORMAT, $date);
+  return $o_date->toString($user->date_format);
 }

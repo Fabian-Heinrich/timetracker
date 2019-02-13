@@ -28,22 +28,29 @@
 
 require_once('initialize.php');
 import('form.Form');
-import('ttTeamHelper');
+import('ttGroupHelper');
 
-// Access check.
-if (!ttAccessCheck(right_view_invoices) || !$user->isPluginEnabled('iv')) {
+// Access checks.
+if (!(ttAccessAllowed('manage_invoices') || ttAccessAllowed('view_own_invoices'))) {
   header('Location: access_denied.php');
   exit();
 }
+
+if (!$user->isPluginEnabled('iv')) {
+  header('Location: feature_disabled.php');
+  exit();
+}
+// End of access checks.
+
 $form = new Form('invoicesForm');
-$form->addInput(array('type'=>'submit','name'=>'btn_submit','value'=>$i18n->getKey('button.submit')));
+$form->addInput(array('type'=>'submit','name'=>'btn_submit','value'=>$i18n->get('button.submit')));
 $form->addInput(array('type'=>'datefield','maxlength'=>'20','name'=>'date'));
 //$form->addInput(array('type'=>'datefield','maxlength'=>'20','name'=>'end_date'));
         
 // Submit.
 if ($request->isPost()) {
   if ($request->getParameter('btn_submit')) {
-      $date_array = split("-", $request->getParameter('date'));
+      $date_array = explode ("-", $request->getParameter('date'));
       // $date should be m-Y -> 06-2017
       if ((int)$date_array[1] <= 12 && (int)$date_array[1] >= 1 && (int)$date_array[0] <= 3000 && (int)$date_array[0] >= 2000){
 	$invoices = ttTeamHelper::getInvoicesByDate($date_array[1]."-".$date_array[0]);
@@ -58,7 +65,7 @@ if ($request->isPost()) {
 }
 
 $smarty->assign('invoices', $invoices);
-$smarty->assign('title', $i18n->getKey('title.invoices'));
+$smarty->assign('title', $i18n->get('title.invoices'));
 $smarty->assign('forms', array($form->getName()=>$form->toArray()));
 $smarty->assign('content_page_name', 'invoices.tpl');
 $smarty->display('index.tpl');

@@ -8,13 +8,20 @@
 
 {$forms.timeRecordForm.open}
 <table cellspacing="4" cellpadding="0" border="0">
+{if $user->isPluginEnabled('wv')}
+  <tr>
+    <td align="center" colspan=2">
+      <a href="time.php?date={$selected_date->toString()}">{$i18n.label.day_view}</a>&nbsp;/&nbsp;<a href="week.php?date={$selected_date->toString()}">{$i18n.label.week_view}</a>
+    </td>
+  </tr>
+{/if}
   <tr>
     <td valign="top">
       <table>
-{if $on_behalf_control}
+{if $user_dropdown}
         <tr>
           <td align="right">{$i18n.label.user}:</td>
-          <td>{$forms.timeRecordForm.onBehalfUser.control}</td>
+          <td>{$forms.timeRecordForm.user.control}</td>
         </tr>
 {/if}
 {if $user->isPluginEnabled('cl')}
@@ -42,7 +49,7 @@
 {/if}
 {if ($smarty.const.MODE_PROJECTS_AND_TASKS == $user->tracking_mode)}
         <tr>
-          <td align="right">{$i18n.label.task}:</td>
+          <td align="right">{$i18n.label.task}{if $user->task_required} (*){/if}:</td>
           <td>{$forms.timeRecordForm.task.control}</td>
         </tr>
 {/if}
@@ -59,7 +66,7 @@
 {if (($smarty.const.TYPE_DURATION == $user->record_type) || ($smarty.const.TYPE_ALL == $user->record_type))}
         <tr>
           <td align="right">{$i18n.label.duration}:</td>
-          <td>{$forms.timeRecordForm.duration.control}&nbsp;{$i18n.form.time.duration_format}</td>
+          <td>{$forms.timeRecordForm.duration.control}&nbsp;{if $user->getDecimalMark() == ','}{str_replace('.', ',', $i18n.form.time.duration_format)}{else}{$i18n.form.time.duration_format}{/if}</td>
         </tr>
 {/if}
       </table>
@@ -106,7 +113,7 @@
         <td width="5%" class="tableHeader">{$i18n.label.edit}</td>
       </tr>
   {foreach $time_records as $record}
-      <tr bgcolor="{cycle values="#f5f5f5,#ccccce"}" {if !$record.billable} class="not_billable" {/if}>
+      <tr bgcolor="{cycle values="#f5f5f5,#ffffff"}" {if !$record.billable} class="not_billable" {/if}>
     {if $user->isPluginEnabled('cl')}
         <td valign="top">{$record.client|escape}</td>
     {/if}
@@ -142,7 +149,7 @@
   </td>
 </tr>
 </table>
-{if $time_records}
+
 <table cellpadding="3" cellspacing="1" width="720">
   <tr>
     <td align="left">{$i18n.label.week_total}: {$week_total}</td>
@@ -151,6 +158,14 @@
   {if $user->isPluginEnabled('mq')}
   <tr>
     <td align="left">{$i18n.label.month_total}: {$month_total}</td>
+    {if $over_balance}
+    <td align="right">{$i18n.form.time.over_balance}: <span style="color: green;">{$balance_remaining}</span></td>
+    {else}
+    <td align="right">{$i18n.form.time.remaining_balance}: <span style="color: red;">{$balance_remaining}</span></td>
+    {/if}
+  </tr>
+  <tr>
+    <td align="left">{$i18n.label.quota}: {$month_quota}</td>
     {if $over_quota}
     <td align="right">{$i18n.form.time.over_quota}: <span style="color: green;">{$quota_remaining}</span></td>
     {else}
@@ -159,5 +174,5 @@
   </tr>
   {/if}
 </table>
-{/if}
+
 {$forms.timeRecordForm.close}
