@@ -233,7 +233,7 @@ if ('csv' == $type) {
         print ',"'.$val.'"';
       }
       if ($bean->getAttribute('chunits')) print ',"'.$item['units'].'"';
-      if ($bean->getAttribute('chnote')) print ',"'.str_replace('"','""',$item['note']).'"';
+      if ($bean->getAttribute('chnote')) print ',"'.str_replace(array("\n", "\r"), ' ', str_replace('"','""',$item['note'])).'"';
       if ($bean->getAttribute('chcost')) {
         if ($user->can('manage_invoices') || $user->isClient())
           print ',"'.$item['cost'].'"';
