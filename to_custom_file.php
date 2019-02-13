@@ -118,7 +118,7 @@ if ($totals_only) {
   print '"'.$i18n->getKey('label.date').'"';
   if ($user->canManageTeam() || $user->isClient()) print $SEPARATOR.'"'.$i18n->getKey('label.user').'"';
   if ($bean->getAttribute('chclient')) print $SEPARATOR.'"'.$i18n->getKey('label.client').'"';
-  if ($bean->getAttribute('chclient_number')) print $SEPARATOR.'"'.$i18n->getKey('label.client_number').'"';
+  if ($bean->getAttribute('chclientnumber')) print $SEPARATOR.'"'.$i18n->getKey('label.client_number').'"';
   if ($bean->getAttribute('chproject')) print $SEPARATOR.'"'.$i18n->getKey('label.project').'"';
   if ($bean->getAttribute('chtask')) print $SEPARATOR.'"'.$i18n->getKey('label.task').'"';
   if ($bean->getAttribute('chcf_1')) print $SEPARATOR.'"'.$custom_fields->fields[0]['label'].'"';
@@ -136,7 +136,7 @@ if ($totals_only) {
     print '"'.$item['date'].'"';
     if ($user->canManageTeam() || $user->isClient()) print $SEPARATOR.'"'.str_replace('"','""',$item['user']).'"';
     if ($bean->getAttribute('chclient')) print $SEPARATOR.'"'.str_replace('"','""',$item['client']).'"';
-    if ($bean->getAttribute('chclient_number')) print $SEPARATOR.'"'.str_replace('"','""',$item['client_number']).'"';
+    if ($bean->getAttribute('chclientnumber')) print $SEPARATOR.'"'.str_replace('"','""',$item['client_number']).'"';
     if ($bean->getAttribute('chproject')) print $SEPARATOR.'"'.str_replace('"','""',$item['project']).'"';
     if ($bean->getAttribute('chtask')) print $SEPARATOR.'"'.str_replace('"','""',$item['task']).'"';
     if ($bean->getAttribute('chcf_1')) print $SEPARATOR.'"'.str_replace('"','""',$item['cf_1']).'"';

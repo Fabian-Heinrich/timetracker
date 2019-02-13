@@ -50,7 +50,7 @@ if ($request->isPost()) {
   $cl_projects = $request->getParameter('projects');
 } else {
   $client = ttClientHelper::getClient($cl_id, true);
-  $cl_number = $client['number'];
+  $cl_number = $client['client_number'];
   $cl_name = $client['name'];
   $cl_address = $client['address'];
   $cl_tax = $client['tax'];
@@ -87,7 +87,7 @@ if ($request->isPost()) {
       if (($client && ($cl_id == $client['id'])) || !$client) {
         if (ttClientHelper::update(array(
           'id' => $cl_id,
-          'number' => $cl_number,
+          'client_number' => $cl_number,
           'name' => $cl_name,
           'address' => $cl_address,
           'tax' => $cl_tax,

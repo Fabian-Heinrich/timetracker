@@ -34,6 +34,7 @@ require_once('initialize.php');
 import('form.Form');
 import('form.ActionForm');
 import('ttReportHelper');
+import('ttClientHelper');
 
 // Check whether TCPDF library is available.
 if (!file_exists('WEB-INF/lib/tcpdf/'))
@@ -99,6 +100,13 @@ $styleWider = 'class="wider"';
 $styleThinner = 'class="thinner"';
 
 $title = $i18n->getKey('title.report').": ".$totals['start_date']." - ".$totals['end_date'];
+
+if ($bean->mValues['client'] == ""){
+	$subtitle = $i18n->getKey('label.client').": " . $i18n->getKey('form.profile.type_all');
+} else {
+	$subtitle = $i18n->getKey('label.client').": " . ttClientHelper::getClient($bean->mValues['client'])["name"];
+}
+
 $html = "<style>"
 	. ".header { background-color:#a6ccf7; } "
 	. ".subtotal { background-color:#e0e0e0; }"
@@ -109,6 +117,7 @@ $html = "<style>"
 	. "table { width: 780px; }"
 	. "</style>";
 $html .= '<h1 style="text-align:center;">'.$title.'</h1>';
+$html .= '<h2 style="text-align:center;">'.$subtitle.'</h2>';
 $html .= '<table border="1" cellpadding="3" cellspacing="0">';
 
 if ($totals_only) {
@@ -162,7 +171,7 @@ if ($totals_only) {
   $html .= '<td>'.$i18n->getKey('label.date').'</td>';
   if ($user->canManageTeam() || $user->isClient()) { $colspan++; $html .= '<td>'.$i18n->getKey('label.user').'</td>'; }
   if ($bean->getAttribute('chclient')) { $colspan++; $html .= '<td>'.$i18n->getKey('label.client').'</td>'; }
-  if ($bean->getAttribute('chclient_number')) { $colspan++; $html .= '<td>'.$i18n->getKey('label.client_number').'</td>'; }
+  if ($bean->getAttribute('chclientnumber')) { $colspan++; $html .= '<td>'.$i18n->getKey('label.client_number').'</td>'; }
   if ($bean->getAttribute('chproject')) { $colspan++; $html .= '<td>'.$i18n->getKey('label.project').'</td>'; }
   if ($bean->getAttribute('chtask')) { $colspan++; $html .= '<td>'.$i18n->getKey('label.task').'</td>'; }
   if ($bean->getAttribute('chcf_1')) { $colspan++; $html .= '<td>'.htmlspecialchars($custom_fields->fields[0]['label']).'</td>'; }
@@ -194,7 +203,7 @@ if ($totals_only) {
             if ($group_by == 'client') $html .= htmlspecialchars($subtotals[$prev_grouped_by]['name']);
             $html .= '</td>';
         }
-        if ($bean->getAttribute('chclient_number')) {
+        if ($bean->getAttribute('chclientnumber')) {
             $html .= '<td></td>';
         }
         if ($bean->getAttribute('chproject')) {
@@ -237,7 +246,7 @@ if ($totals_only) {
     $html .= '<td>'.$item['date'].'</td>';
     if ($user->canManageTeam() || $user->isClient()) $html .= '<td>'.htmlspecialchars($item['user']).'</td>';
     if ($bean->getAttribute('chclient')) $html .= '<td>'.htmlspecialchars($item['client']).'</td>';
-    if ($bean->getAttribute('chclient_number')) $html .= '<td>'.htmlspecialchars($item['client_number']).'</td>';
+    if ($bean->getAttribute('chclientnumber')) $html .= '<td>'.htmlspecialchars($item['client_number']).'</td>';
     if ($bean->getAttribute('chproject')) $html .= '<td>'.htmlspecialchars($item['project']).'</td>';
     if ($bean->getAttribute('chtask')) $html .= '<td>'.htmlspecialchars($item['task']).'</td>';
     if ($bean->getAttribute('chcf_1')) $html .= '<td>'.htmlspecialchars($item['cf_1']).'</td>';
@@ -275,7 +284,7 @@ if ($totals_only) {
       if ($group_by == 'client') $html .= htmlspecialchars($subtotals[$prev_grouped_by]['name']);
       $html .= '</td>';
     }
-    if ($bean->getAttribute('chclient_number')) {
+    if ($bean->getAttribute('chclientnumber')) {
       $html .= '<td></td>';
     }
     if ($bean->getAttribute('chproject')) {
@@ -316,7 +325,7 @@ if ($totals_only) {
   $html .= '<td>'.$i18n->getKey('label.total').'</td>';
   if ($user->canManageTeam() || $user->isClient()) $html .= '<td></td>';
   if ($bean->getAttribute('chclient')) $html .= '<td></td>';
-  if ($bean->getAttribute('chclient_number')) $html .= '<td></td>';
+  if ($bean->getAttribute('chclientnumber')) $html .= '<td></td>';
   if ($bean->getAttribute('chproject')) $html .= '<td></td>';
   if ($bean->getAttribute('chtask')) $html .= '<td></td>';
   if ($bean->getAttribute('chcf_1')) $html .= '<td></td>';

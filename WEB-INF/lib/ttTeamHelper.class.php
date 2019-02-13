@@ -271,7 +271,7 @@ class ttTeamHelper {
     if ($all_fields)
       $sql = "select * from tt_clients where team_id = $team_id and status = 1 order by upper(name)";
     else
-      $sql = "select id, name from tt_clients where team_id = $team_id and status = 1 order by upper(name)";
+      $sql = "select id, client_number, name from tt_clients where team_id = $team_id and status = 1 order by upper(name)";
 
     $res = $mdb2->query($sql);
     $result = array();

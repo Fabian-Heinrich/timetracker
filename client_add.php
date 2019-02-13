@@ -71,7 +71,7 @@ if ($request->isPost()) {
     if (!ttClientHelper::getClientByName($cl_name)) {
       if (ttClientHelper::insert(array(
         'team_id' => $user->team_id,
-        'number' => $cl_number,
+        'client_number' => $cl_number,
         'name' => $cl_name,
         'address' => $cl_address,
         'tax' => $cl_tax,

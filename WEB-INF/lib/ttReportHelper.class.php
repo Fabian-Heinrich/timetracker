@@ -241,7 +241,7 @@ class ttReportHelper {
       array_push($fields, 'c.name as client');
     // Add client number if it is selected
     if ($bean->getAttribute('chclientnumber'))    
-      array_push($fields, 'c.number as clientnumber');
+      array_push($fields, 'c.client_number as client_number');
     // Add project name if it is selected.
     if ($bean->getAttribute('chproject') || 'project' == $group_by_option)
       array_push($fields, 'p.name as project');
@@ -335,7 +335,7 @@ class ttReportHelper {
         array_push($fields, 'c.name as client');
       // Add client name if it is selected.
       if ($bean->getAttribute('chclientnumber') || 'clientnumber' == $group_by_option)
-        array_push($fields, 'c.number as clientnumber');
+        array_push($fields, 'c.client_number as clientnumber');
       // Add project name if it is selected.
       if ($bean->getAttribute('chproject') || 'project' == $group_by_option)
         array_push($fields, 'p.name as project');

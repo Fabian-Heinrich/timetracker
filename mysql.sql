@@ -237,6 +237,7 @@ CREATE TABLE `tt_cron` (
 CREATE TABLE `tt_clients` (
   `id` int(11) NOT NULL AUTO_INCREMENT,         # client id
   `team_id` int(11) NOT NULL,                   # team id
+  `client_number` int(11) NOT NULL,             # client number
   `name` varchar(80) COLLATE utf8_bin NOT NULL, # client name
   `address` varchar(255) default NULL,          # client address
   `tax` float(6,2) default '0.00',              # applicable tax for this client

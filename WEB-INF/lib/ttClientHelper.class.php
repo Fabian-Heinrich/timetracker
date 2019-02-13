@@ -161,7 +161,7 @@ class ttClientHelper {
     $mdb2 = getConnection();
 
     $team_id = (int) $fields['team_id'];
-    $number = (int) $fields['number'];
+    $client_number = (int) $fields['client_number'];
     $name = $fields['name'];
     $address = $fields['address'];
     $tax = $fields['tax'];
@@ -173,8 +173,8 @@ class ttClientHelper {
     $tax = str_replace(',', '.', $tax);
     if ($tax == '') $tax = 0;
 
-    $sql = "insert into tt_clients (team_id, number, name, address, tax, projects, status) 
-      values ($team_id, ".$mdb2->quote($number).", ".$mdb2->quote($name).", ".$mdb2->quote($address).", $tax, ".$mdb2->quote($comma_separated).", ".$mdb2->quote($status).")";
+    $sql = "insert into tt_clients (team_id, client_number, name, address, tax, projects, status) 
+      values ($team_id, ".$mdb2->quote($client_number).", ".$mdb2->quote($name).", ".$mdb2->quote($address).", $tax, ".$mdb2->quote($comma_separated).", ".$mdb2->quote($status).")";
 
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
@@ -204,7 +204,7 @@ class ttClientHelper {
     global $user;
 
     $id = $fields['id'];
-    $number = $fields['number'];
+    $client_number = $fields['client_number'];
     $name = $fields['name'];
     $address = $fields['address'];
     $tax = $fields['tax'];
@@ -229,7 +229,7 @@ class ttClientHelper {
 
     // Update client properties in tt_clients table.
     $comma_separated = implode(",", $projects); // This is a comma-separated list of associated project ids.
-    $sql = "update tt_clients set number = ".$mdb2->quote($number).", name = ".$mdb2->quote($name).", address = ".$mdb2->quote($address).
+    $sql = "update tt_clients set client_number = ".$mdb2->quote($client_number).", name = ".$mdb2->quote($name).", address = ".$mdb2->quote($address).
       ", tax = $tax, projects = ".$mdb2->quote($comma_separated).", status = $status where team_id = ".$user->team_id." and id = ".$id;
     $affected = $mdb2->exec($sql);
     return (!is_a($affected, 'PEAR_Error'));
