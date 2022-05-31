@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -33,8 +9,6 @@ $i18n_language = 'Dutch (Nederlands)';
 $i18n_months = array('Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December');
 $i18n_weekdays = array('Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag');
 $i18n_weekdays_short = array('Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za');
-// format mm/dd
-$i18n_holidays = array('01/01', '04/09', '04/30', '05/18', '05/28', '12/25', '12/26');
 
 $i18n_key_words = array(
 
@@ -44,19 +18,21 @@ $i18n_key_words = array(
 'menu.logout' => 'Afmelden',
 'menu.forum' => 'Forum',
 'menu.help' => 'Help',
-'menu.create_group' => 'Maak groep',
+'menu.register' => 'Registreren',
 'menu.profile' => 'Profiel',
 'menu.group' => 'Groep',
 'menu.plugins' => 'Plugins',
 'menu.time' => 'Tijden',
+'menu.puncher' => 'Prikklok',
+'menu.week' => 'Week',
 'menu.expenses' => 'Kosten',
 'menu.reports' => 'Rapporten',
+'menu.timesheets' => 'Tijdenoverzichten',
 'menu.charts' => 'Grafieken',
 'menu.projects' => 'Projecten',
 'menu.tasks' => 'Taken',
 'menu.users' => 'Medewerkers',
 'menu.groups' => 'Groepen',
-'menu.subgroups' => 'Subgroepen',
 'menu.export' => 'Exporteren',
 'menu.clients' => 'Klanten',
 'menu.options' => 'Opties',
@@ -71,6 +47,7 @@ $i18n_key_words = array(
 'error.access_denied' => 'Toegang geweigerd.',
 'error.sys' => 'Systeem fout.',
 'error.db' => 'Database fout.',
+'error.registered_recently' => 'Recent geregistreerd.',
 'error.feature_disabled' => 'Functie is uitgeschakeld.',
 'error.field' => 'Incorrecte gegevens: "{0}".',
 'error.empty' => 'Veld "{0}" is leeg.',
@@ -82,11 +59,14 @@ $i18n_key_words = array(
 'error.report' => 'Kies rapport.',
 'error.record' => 'Kies record.',
 'error.auth' => 'Onjuiste inlognaam of wachtwoord.',
+'error.2fa_code' => 'Niet geldige 2FA code.',
+'error.weak_password' => 'Zwak wachtwoord.',
 'error.user_exists' => 'Een gebruiker met deze inlognaam bestaat al.',
 'error.object_exists' => 'Een object met deze naam bestaat al.',
 'error.invoice_exists' => 'Dit nummer is al eens toegekend aan een factuur.',
 'error.role_exists' => 'Een rol met deze rangorde bestaat al.',
 'error.no_invoiceable_items' => 'Er zijn geen factuureerbare onderdelen.',
+'error.no_records' => 'Er zijn geen records.',
 'error.no_login' => 'Een medewerker met deze inlognaam bestaat niet.',
 'error.no_groups' => 'Uw database is leeg. Meld je aan als admin en maak een nieuw groep.',
 'error.upload' => 'Fout bij het uploaden van het bestand.',
@@ -102,6 +82,7 @@ $i18n_key_words = array(
 'error.format' => 'Bestandsformaat niet valide.',
 'error.user_count' => 'Limiet op aantal gebruikers.',
 'error.expired' => 'Verloop datum is bereikt.',
+'error.file_storage' => 'Bestand server probleem.',
 
 // Warning messages.
 'warn.sure' => 'Ben je er zeker van?',
@@ -127,9 +108,14 @@ $i18n_key_words = array(
 'button.export' => 'Groep exporteren',
 'button.import' => 'Groep importeren',
 'button.close' => 'Sluiten',
+'button.start' => 'Start',
 'button.stop' => 'Stop',
+'button.approve' => 'Goedkeuren',
+'button.disapprove' => 'Afkeuren',
+'button.sync' => 'Sychroniseer',
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
+'label.menu' => 'Menu',
 'label.group_name' => 'Groepsnaam',
 'label.address' => 'Adres',
 'label.currency' => 'Munteenheid',
@@ -181,6 +167,7 @@ $i18n_key_words = array(
 'label.select_none' => 'Selecteer niets',
 'label.day_view' => 'Dag overzicht',
 'label.week_view' => 'Week overzicht',
+'label.puncher' => 'Prikklok',
 'label.id' => 'ID',
 'label.language' => 'Taal',
 'label.decimal_mark' => 'Decimaal teken',
@@ -199,23 +186,22 @@ $i18n_key_words = array(
 'label.ldap_hint' => 'Type uw <b>Windows login</b> en <b>wachtwoord</b> in de onderstaande velden.',
 'label.required_fields' => '* - verplichte velden',
 'label.on_behalf' => 'namens',
-'label.role_manager' => '(manager)',
-'label.role_comanager' => '(co-manager)',
-'label.role_admin' => '(beheerder)',
 'label.page' => 'Pagina',
 'label.condition' => 'Voorwaarde',
 'label.yes' => 'ja',
 'label.no' => 'nee',
+'label.sort' => 'Sorteren',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 'label.custom_fields' => 'Eigen velden',
 'label.monthly_quotas' => 'Doelen per maand',
+'label.entity' => 'Entiteit',
 'label.type' => 'Type',
 'label.type_dropdown' => 'uitklapbaar',
 'label.type_text' => 'tekst',
 'label.required' => 'Verplicht veld',
 'label.fav_report' => 'Standaard rapport',
 'label.schedule' => 'Planning',
-'label.what_is_it' => 'Wat betekent dit?',
+'label.what_is_it' => 'Meer informatie',
 'label.expense' => 'Kosten',
 'label.quantity' => 'Hoeveelheid',
 'label.paid_status' => 'Status van betaling',
@@ -223,17 +209,36 @@ $i18n_key_words = array(
 'label.mark_paid' => 'Markeer als betaald',
 'label.week_note' => 'Week aantekening',
 'label.week_list' => 'Week overzicht',
+'label.weekends' => 'Weekeinden',
 'label.work_units' => 'Werk eenheid',
 'label.work_units_short' => 'Eenheid',
 'label.totals_only' => 'Alleen totalen',
 'label.quota' => 'Maanddoel',
+'label.timesheet' => 'Tijdenoverzicht',
+'label.submitted' => 'Verzonden',
+'label.approved' => 'Goedgekeurd',
+'label.approval' => 'Rapport goedkeuring',
+'label.mark_approved' => 'Markeer goedkeuring',
+'label.template' => 'Sjabloon',
+'label.bind_templates_with_projects' => 'Verbind sjabloon aan projecten',
+'label.prepopulate_note' => 'Vul het notitieveld van tevoren in',
+'label.attachments' => 'Bijlagen',
+'label.files' => 'Bestanden',
+'label.file' => 'Bestand',
+'label.active_users' => 'Actieve medewerkers',
+'label.inactive_users' => 'Inactieve medewerkers',
+
+// Entity names.
+'entity.time' => 'tijd',
+'entity.user' => 'medewerker',
+'entity.project' => 'project',
 
 // Form titles.
 'title.error' => 'Fout',
 'title.success' => 'Succes',
 'title.login' => 'Aanmelden',
+'title.2fa' => 'Two Factor Authentication',
 'title.groups' => 'Groepen',
-'title.subgroups' => 'Subgroepen',
 'title.add_group' => 'Groep toevoegen',
 'title.edit_group' => 'Groep bewerken',
 'title.delete_group' => 'Groep aan het verwijderen',
@@ -242,9 +247,12 @@ $i18n_key_words = array(
 'title.time' => 'Tijdsregistraties',
 'title.edit_time_record' => 'Wijzigen tijdrecord',
 'title.delete_time_record' => 'Verwijder tijdrecord',
+'title.time_files' => 'Tijden bestanden',
+'title.puncher' => 'Prikklok',
 'title.expenses' => 'Kosten',
 'title.edit_expense' => 'Bewerk kosten artikel',
 'title.delete_expense' => 'Verwijder kosten artikel',
+'title.expense_files' => 'Kosten bestanden',
 'title.predefined_expenses' => 'Vaste kosten',
 'title.add_predefined_expense' => 'Vaste kosten toevoegen',
 'title.edit_predefined_expense' => 'Vaste kosten bewerken',
@@ -252,10 +260,14 @@ $i18n_key_words = array(
 'title.reports' => 'Rapporten',
 'title.report' => 'Rapport',
 'title.send_report' => 'Rapport aan het versturen',
+'title.timesheets' => 'Tijdenoverzichten',
+'title.timesheet' => 'Tijdenoverzicht',
+'title.timesheet_files' => 'Tijdenoverzichten bestanden',
 'title.invoice' => 'Factuur',
 'title.send_invoice' => 'Factuur verzenden',
 'title.charts' => 'Grafieken',
 'title.projects' => 'Projecten',
+'title.project_files' => 'Project bestanden',
 'title.add_project' => 'Project toevoegen',
 'title.edit_project' => 'Project wijzigen',
 'title.delete_project' => 'Project verwijderen',
@@ -283,10 +295,14 @@ $i18n_key_words = array(
 'title.add_notification' => 'Notificatie toevoegen',
 'title.edit_notification' => 'Notificatie bewerken',
 'title.delete_notification' => 'Notificatie verwijderen',
+'title.add_timesheet' => 'Tijdenoverzicht toevoegen',
+'title.edit_timesheet' => 'Tijdenoverzicht bewerken',
+'title.delete_timesheet' => 'Tijdenoverzicht verwijderen',
 'title.monthly_quotas' => 'Doelen per maand',
 'title.export' => 'Exporteer groepsgegevens',
 'title.import' => 'Importeer groepsgegevens',
 'title.options' => 'Opties',
+'title.display_options' => 'Beeld opties',
 'title.profile' => 'Profiel',
 'title.plugins' => 'Plugins',
 'title.cf_custom_fields' => 'Eigen velden',
@@ -301,6 +317,13 @@ $i18n_key_words = array(
 'title.week_view' => 'Week overzicht',
 'title.swap_roles' => 'Rollen verruilen',
 'title.work_units' => 'Werk eenheid',
+'title.templates' => 'Sjablonen',
+'title.add_template' => 'Sjabloon toevoegen',
+'title.edit_template' => 'Sjabloon bewerken',
+'title.delete_template' => 'Sjabloon verwijderen',
+'title.edit_file' => 'Bestand bewerken',
+'title.delete_file' => 'Bestand verwijderen',
+'title.download_file' => ' Bestand downloaden',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -324,12 +347,17 @@ $i18n_key_words = array(
 'dropdown.clients' => 'klanten',
 'dropdown.select' => '--- kies ---',
 'dropdown.select_invoice' => '--- kies factuur ---',
+'dropdown.select_timesheet' => '--- kies tijdenoverzicht ---',
 'dropdown.status_active' => 'actief',
 'dropdown.status_inactive' => 'inactief',
 'dropdown.delete' => 'verwijderen',
 'dropdown.do_not_delete' => 'niet verwijderen',
+'dropdown.approved' => 'goedgekeurd',
+'dropdown.not_approved' => 'afgekeurd',
 'dropdown.paid' => 'betaald',
 'dropdown.not_paid' => 'niet betaald',
+'dropdown.ascending' => 'oplopend',
+'dropdown.descending' => 'aflopend',
 
 // Below is a section for strings that are used on individual forms. When a string is used only on one form it should be placed here.
 // One exception is for closely related forms such as "Time" and "Editing Time Record" with similar controls. In such cases
@@ -338,12 +366,20 @@ $i18n_key_words = array(
 
 // Login form. See example at https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'Wachtwoord vergeten?',
-'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> is een eenvoudig en gemakkelijk te gebruiken open source tijdregistratiesysteem.',
+'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> is een open source tijdregistratiesysteem.',
+
+// Email subject and body for two-factor authentication.
+'email.2fa_code.subject' => 'Anuko Time Tracker two-factor authentication code',
+'email.2fa_code.body' => "Beste gebruiker,\n\nJouw two-factor authentication code is:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+'form.2fa.hint' => 'Je kunt je 2FA code vinden in een email die aan je is verstuurd en hier invullen.',
+'form.2fa.2fa_code' => '2FA code',
 
 // Resetting Password form. See example at https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => 'Het verzoek om het wachtwoord te herstellen is verzonden per email.',
 'form.reset_password.email_subject' => 'Anuko Time Tracker wachtwoord herstel verzoek',
-'form.reset_password.email_body' => "Geachte medewerker,\n\nIemand, met IP adres %s, heeft verzocht uw wachtwoord in Anuko Time Tracker te herstellen. Klik op deze link als u uw wachtwoord wil wijzigen.\n\n%s\n\nAnuko Time Tracker is een eenvoudig en gemakkelijk te gebruiken open source tijdregistratiesysteem. Bezoek https://www.anuko.com voor meer informatie.\n\n",
+'form.reset_password.email_body' => "Beste gebruiker,\n\nIemand, met IP adres %s, heeft verzocht uw wachtwoord in Anuko Time Tracker te herstellen. Klik op deze link als u uw wachtwoord wil wijzigen.\n\n%s\n\nAnuko Time Tracker is een open source tijdregistratiesysteem. Bezoek https://www.anuko.com voor meer informatie.\n\n",
 
 // Changing Password form. See example at https://timetracker.anuko.com/password_change.php?ref=1.
 'form.change_password.tip' => 'Voer het nieuwe wachtwoord in en klik op Bewaren.',
@@ -352,11 +388,10 @@ $i18n_key_words = array(
 'form.time.duration_format' => '(uu:mm of 0.0u)',
 'form.time.billable' => 'Factureerbaar',
 'form.time.uncompleted' => 'Onvolledig',
-// TODO: The following 4 strings may need to be shorter for mobile apps.
-'form.time.remaining_quota' => 'Nog te werken uren voor de doelstelling deze maand',
-'form.time.over_quota' => 'Meer gewerkte uren dan de doelstelling deze maand',
-'form.time.remaining_balance' => 'Minder gewerkte uren dan de doelstelling in ratio met de verstreken dagen',
-'form.time.over_balance' => 'Meer gewerkte uren dan de doelstelling in ratio met de verstreken dagen',
+'form.time.remaining_quota' => 'Nog te werken uren deze maand',
+'form.time.over_quota' => 'Meer gewerkte uren deze maand',
+'form.time.remaining_balance' => 'Minder gewerkte uren naar ratio',
+'form.time.over_balance' => 'Meer gewerkte uren naar ratio',
 
 // Editing Time Record form. See example at https://timetracker.anuko.com/time_edit.php (get there by editing an uncompleted time record).
 'form.time_edit.uncompleted' => 'Dit tijdrecord is opgeslagen met alleen een starttijd. Dit is geen fout.',
@@ -371,9 +406,14 @@ $i18n_key_words = array(
 'form.reports.include_not_billable' => 'niet factureerbaar',
 'form.reports.include_invoiced' => 'gefactureerd',
 'form.reports.include_not_invoiced' => 'niet gefactureerd',
+'form.reports.include_assigned' => 'toegewezen',
+'form.reports.include_not_assigned' => 'niet toegewezen',
+'form.reports.include_pending' => 'in afwachting',
 'form.reports.select_period' => 'Kies periode',
 'form.reports.set_period' => 'of stel datums in',
 'form.reports.show_fields' => 'Toon velden',
+'form.reports.time_fields' => 'Tijd velden',
+'form.reports.user_fields' => 'Medewerker velden',
 'form.reports.group_by' => 'Groeperen op',
 'form.reports.group_by_no' => '--- niet groeperen ---',
 'form.reports.group_by_date' => 'datum',
@@ -386,9 +426,18 @@ $i18n_key_words = array(
 // (after generating a report at https://timetracker.anuko.com/reports.php).
 'form.report.export' => 'Exporteer',
 'form.report.assign_to_invoice' => 'Voeg toe aan factuur',
+'form.report.assign_to_timesheet' => 'Wijs toe aan tijdenoverzicht',
 
-// Invoice form. See example at https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+'form.timesheets.active_timesheets' => 'Actieve tijdenoverzichten',
+'form.timesheets.inactive_timesheets' => 'Inactieve tijdenoverzichten',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+'form.templates.active_templates' => 'Actieve sjablonen',
+'form.templates.inactive_templates' => 'Inactieve sjablonen',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => 'Factuur nummer',
 'form.invoice.person' => 'Medewerker',
 
@@ -410,8 +459,7 @@ $i18n_key_words = array(
 'form.tasks.inactive_tasks' => 'Inactieve taken',
 
 // Users form. See example at https://timetracker.anuko.com/users.php
-'form.users.active_users' => 'Actieve medewerkers',
-'form.users.inactive_users' => 'Inactieve medewerkers',
+'form.users.uncompleted_entry_today' => 'Gebruiker heeft vandaag een tijd ingevoerd die niet compleet is',
 'form.users.uncompleted_entry' => 'Gebruiker heeft tijd ingevoerd die niet compleet is',
 'form.users.role' => 'Rol',
 'form.users.manager' => 'Manager',
@@ -455,7 +503,8 @@ $i18n_key_words = array(
 // Group Settings form. See example at https://timetracker.anuko.com/group_edit.php.
 'form.group_edit.12_hours' => '12 uurs',
 'form.group_edit.24_hours' => '24 uurs',
-'form.group_edit.show_holidays' => 'Toon vakantiedagen',
+'form.group_edit.display_options' => 'Beeld opties',
+'form.group_edit.holidays' => 'Vakanties',
 'form.group_edit.tracking_mode' => 'Bijhouden',
 'form.group_edit.mode_time' => 'tijd',
 'form.group_edit.mode_projects' => 'projecten',
@@ -465,20 +514,25 @@ $i18n_key_words = array(
 'form.group_edit.type_start_finish' => 'begin en einde',
 'form.group_edit.type_duration' => 'duur',
 'form.group_edit.punch_mode' => 'Start/stop modus',
+'form.group_edit.one_uncompleted' => 'Één niet-volledige registratie toestaan',
 'form.group_edit.allow_overlap' => 'Sta overlapping van tijden toe',
 'form.group_edit.future_entries' => 'Toevoegingen toestaan in de toekomst',
 'form.group_edit.uncompleted_indicators' => 'Onvolledige indicatoren',
-'form.group_edit.confirm_save' => 'Bevestig dat je wilt opslaan',
-'form.group_edit.allow_ip' => 'Toegestane IP adressen',
+'form.group_edit.confirm_save' => 'Bevestigen dat je wilt opslaan',
+'form.group_edit.advanced_settings' => 'Geavanceerde instellingen',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+'form.group_advanced_edit.allow_ip' => 'Toegestane IP adressen',
+'form.group_advanced_edit.password_complexity' => 'Wachtwoord complexiteit',
+'form.group_advanced_edit.2fa' => 'Two Factor Authentication (2FA)',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 'form.group_delete.hint' => 'Bent u er zeker van dat u de hele groep wilt verwijderen?',
 
 // Mail form. See example at https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'Van',
 'form.mail.to' => 'Aan',
 'form.mail.report_subject' => 'Time Tracker rapport',
-'form.mail.footer' => 'Anuko Time Tracker is een eenvoudig en gemakkelijk te gebruiken open source tijdregistratiesysteem. Bezoek <a href="https://www.anuko.com">www.anuko.com</a> voor meer informatie.',
+'form.mail.footer' => 'Anuko Time Tracker is een open source tijdregistratiesysteem. Bezoek <a href="https://www.anuko.com">www.anuko.com</a> voor meer informatie.',
 'form.mail.report_sent' => 'Rapport is verzonden.',
 'form.mail.invoice_sent' => 'Factuur is verzonden.',
 
@@ -502,7 +556,7 @@ $i18n_key_words = array(
 'role.user.description' => 'Een gebruiker zonder beheer rechten.',
 'role.client.label' => 'Klant',
 'role.client.low_case_label' => 'klant',
-'role.client.description' => 'Een klant kan zijn eigen rapporten, grafieken en facturen inzien.',
+'role.client.description' => 'Een klant kan zijn eigen data inzien.',
 'role.supervisor.label' => 'Supervisor',
 'role.supervisor.low_case_label' => 'supervisor',
 'role.supervisor.description' => 'Een persoon met beperkte beheer rechten.',
@@ -518,4 +572,18 @@ $i18n_key_words = array(
 'role.admin.label' => 'Administrator',
 'role.admin.low_case_label' => 'administrator',
 'role.admin.description' => 'Time Tracker beheerder.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+'form.timesheet_view.submit_subject' => 'Verzoek goedkeuring tijdenoverzicht',
+'form.timesheet_view.submit_body' => "Een nieuw tijdenoverzicht vereist goedkeuring.<p>User: %s.",
+'form.timesheet_view.approve_subject' => 'Tijdenoverzicht goedgekeurd',
+'form.timesheet_view.approve_body' => "Jouw tijdenoverzicht %s is goedgekeurd.<p>%s",
+'form.timesheet_view.disapprove_subject' => 'Tijdenoverzicht afgekeurd',
+'form.timesheet_view.disapprove_body' => "Jouw tijdenoverzicht %s is afgekeurd.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+'form.display_options.note_on_separate_row' => 'Notitie in aparte kolom', // Translator (Henk) comment: "kolom is the right word in Dutch."
+'form.display_options.not_complete_days' => 'Niet complete dagen',
+'form.display_options.inactive_projects' => 'Niet actieve projecten',
+'form.display_options.custom_css' => 'Aangepaste CSS',
 );

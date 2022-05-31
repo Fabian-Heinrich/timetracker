@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 require_once('plugins/CustomFields.class.php');
@@ -51,10 +27,21 @@ $form = new Form('fieldForm');
 if ($err->no()) {
   $form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','value'=>$field['label']));
   $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$cl_id));
-  $form->addInput(array('type'=>'checkbox','name'=>'required','value'=>$field['required']));
+
+  // TODO: consider encapsulating this block in a function.
+  $entity_type = $field['entity_type'];
+  if (CustomFields::ENTITY_TIME == $entity_type)
+    $entity = $i18n->get('entity.time');
+  else if (CustomFields::ENTITY_USER == $entity_type)
+    $entity = $i18n->get('entity.user');
+  else if (CustomFields::ENTITY_PROJECT == $entity_type)
+    $entity = $i18n->get('entity.project');
+  $form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'entity','value'=>$entity,'enable'=>false));
+
   $form->addInput(array('type'=>'combobox','name'=>'type','value'=>$field['type'],
     'data'=>array(CustomFields::TYPE_TEXT=>$i18n->get('label.type_text'),
                   CustomFields::TYPE_DROPDOWN=>$i18n->get('label.type_dropdown'))));
+  $form->addInput(array('type'=>'checkbox','name'=>'required','value'=>$field['required']));
   $form->addInput(array('type'=>'submit','name'=>'btn_save','value'=>$i18n->get('button.save')));
 }
 

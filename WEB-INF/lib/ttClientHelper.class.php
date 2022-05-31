@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Class ttClientHelper is used to help with client related tasks.
 class ttClientHelper {
@@ -62,8 +38,8 @@ class ttClientHelper {
     $org_id = $user->org_id;
 
     $result = array();
-	
-    $sql = "select id, name from tt_clients where group_id = $group_id and org_id = $org_id and (status = 0 or status = 1) order by upper(name)";
+
+    $sql = "select id, name, projects from tt_clients where group_id = $group_id and org_id = $org_id and (status = 0 or status = 1) order by upper(name)";
 
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
@@ -87,7 +63,7 @@ class ttClientHelper {
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
       $val = $res->fetchRow();
-      if ($val['id']) {
+      if (isset($val['id']) && $val['id'] > 0) {
         return $val;
       }
     }
@@ -175,7 +151,14 @@ class ttClientHelper {
     $sql = "update tt_clients set status = null".
       " where id = $id and group_id = $group_id and org_id = $org_id";
     $affected = $mdb2->exec($sql);
-    return (!is_a($affected, 'PEAR_Error'));
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
+    return true;
   }
 
   // The insert function inserts a new client record into the clients table.
@@ -190,6 +173,7 @@ class ttClientHelper {
     $address = $fields['address'];
     $tax = $fields['tax'];
     $projects = $fields['projects'];
+    $comma_separated = null;
     if ($projects)
       $comma_separated = implode(',', $projects); // This is a comma-separated list of associated projects ids.
     $status = $fields['status'];
@@ -197,7 +181,7 @@ class ttClientHelper {
     $tax = str_replace(',', '.', $tax);
     if ($tax == '') $tax = 0;
 
-    $sql = "insert into tt_clients (group_id, org_id, client_number, name, address, tax, projects, status)".
+    $sql = "insert into tt_clients (group_id, org_id, number, name, address, tax, projects, status)".
       " values ($group_id, $org_id, ".$mdb2->quote($client_number).", ".$mdb2->quote($name).", ".$mdb2->quote($address).", $tax, ".$mdb2->quote($comma_separated).", ".$mdb2->quote($status).")";
 
     $affected = $mdb2->exec($sql);
@@ -205,13 +189,17 @@ class ttClientHelper {
       return false;
 
     $last_id = $mdb2->lastInsertID('tt_clients', 'id');
-    if (count($projects) > 0)
+    if (isset($projects) && count($projects) > 0)
       foreach ($projects as $p_id) {
         $sql = "insert into tt_client_project_binds (client_id, project_id, group_id, org_id) values($last_id, $p_id, $group_id, $org_id)";
         $affected = $mdb2->exec($sql);
         if (is_a($affected, 'PEAR_Error'))
           return false;
       }
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
 
     return $last_id;
   }
@@ -231,7 +219,7 @@ class ttClientHelper {
     $address = $fields['address'];
     $tax = $fields['tax'];
     $status = $fields['status'];
-    $projects = $fields['projects'];
+    $projects = isset($fields['projects']) ? $fields['projects'] : array();
 
     $tax = str_replace(',', '.', $tax);
     if ($tax == '') $tax = 0;
@@ -257,7 +245,14 @@ class ttClientHelper {
       " where id = $id and group_id = $group_id and org_id = $org_id";
 
     $affected = $mdb2->exec($sql);
-    return (!is_a($affected, 'PEAR_Error'));
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
+    return true;
   }
 
   // The fillBean function fills the ActionForm object with client data.
@@ -336,5 +331,97 @@ class ttClientHelper {
       }
     }
     return $result;
+  }
+
+  // deleteProject - deletes a project from the projects field it tt_clients table
+  // for all clients in a group.
+  static function deleteProject($project_id) {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $sql = "select id from tt_clients".
+      " where projects like '%$project_id%'".
+      " and group_id = $group_id and org_id = $org_id";
+    $res = $mdb2->query($sql);
+    if (!is_a($res, 'PEAR_Error')) {
+      while ($val = $res->fetchRow()) {
+        if (!ttClientHelper::deleteProjectFromClient($project_id, $val['id']))
+          return false;
+      }
+    }
+    return true;
+  }
+
+  // deleteProjectFromClient - deletes a project from the projects field in tt_clients table
+  // for a single client in a group.
+  static function deleteProjectFromClient($project_id, $client_id) {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $sql = "select projects from tt_clients".
+      " where id = $client_id and group_id = $group_id and org_id = $org_id";
+    $res = $mdb2->query($sql);
+    if (is_a($res, 'PEAR_Error')) return false;
+    $val = $res->fetchRow();
+    $projects = explode(',', $val['projects']);
+    if (($key = array_search($project_id, $projects)) !== false) {
+      unset($projects[$key]);
+    }
+    $comma_separated = implode(',', $projects);
+    $sql = "update tt_clients set projects = ".$mdb2->quote($comma_separated).
+      " where id = $client_id and group_id = $group_id and org_id = $org_id";
+    $affected = $mdb2->exec($sql);
+    return (!is_a($affected, 'PEAR_Error'));
+  }
+
+  // unassignProjectFromAllClients - removes a project reference from all clients in tt_clients table
+  // and also from tt_client_project_binds.
+  static function unassignProjectFromAllClients($project_id) {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $project_id = (int) $project_id; // Cast for sql injection protection, just in case.
+
+    // Start with cleaning up tt_client_project_binds table.
+    $sql = "delete from tt_client_project_binds".
+       " where project_id = $project_id and group_id = $group_id and org_id = $org_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Continue with tt_clients table.
+    $sql = "select id, projects from tt_clients where projects like '%$project_id%' and group_id = $group_id and org_id = $org_id";
+    $res = $mdb2->query($sql);
+    while ($val = $res->fetchRow()) {
+
+      $client_id = (int) $val['id'];
+      $projectListed = false;
+
+      $projects = explode(',', $val['projects']);
+      if (($key = array_search($project_id, $projects)) !== false) {
+        unset($projects[$key]);
+        $projectListed = true;
+      }
+      if (!$projectListed)
+        continue;  // Project not listed, continue iterating.
+
+      // If we are here, project is listed and we need to remove it.
+      $comma_separated = implode(',', $projects);
+      $sql = "update tt_clients set projects = ".$mdb2->quote($comma_separated).
+        " where id = $client_id and group_id = $group_id and org_id = $org_id";
+      $affected = $mdb2->exec($sql);
+      if (is_a($affected, 'PEAR_Error'))
+        return false;
+    }
+    return true;
   }
 }

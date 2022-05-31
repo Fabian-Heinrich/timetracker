@@ -1,39 +1,15 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
-import('DateAndTime');
+import('ttDate');
 import('ttInvoiceHelper');
 import('ttClientHelper');
 import('form.Form');
 
 // Access checks.
-if (!(ttAccessAllowed('manage_invoices') || ttAccessAllowed('view_own_invoices'))) {
+if (!(ttAccessAllowed('manage_invoices') || ttAccessAllowed('view_client_invoices'))) {
   header('Location: access_denied.php');
   exit();
 }
@@ -49,7 +25,7 @@ if (!$invoice) {
 }
 // End of access checks.
 
-$invoice_date = new DateAndTime(DB_DATEFORMAT, $invoice['date']);
+$invoice_date = new ttDate($invoice['date']);
 $client = ttClientHelper::getClient($invoice['client_id'], true);
 if (!$client) // In case client was deleted.
   $client = ttClientHelper::getDeletedClient($invoice['client_id']);
@@ -69,7 +45,7 @@ if ($tax_percent > 0) {
     $tax += round($item['cost'] * $tax_percent / 100, 2);
   }
 }
-$total = $subtotal + $tax; 
+$total = $subtotal + $tax;
 
 $currency = $user->getCurrency();
 $decimalMark = $user->getDecimalMark();
@@ -95,13 +71,14 @@ $form = new Form('invoiceForm');
 // Hidden control for invoice id.
 $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$cl_invoice_id));
 // invoiceForm only contains controls for "Mark paid" block below invoice table.
-if ($user->isPluginEnabled('ps')) {
+if ($user->isPluginEnabled('ps') && !$user->isClient()) {
   $mark_paid_action_options = array('1'=>$i18n->get('dropdown.paid'),'2'=>$i18n->get('dropdown.not_paid'));
   $form->addInput(array('type'=>'combobox',
     'name'=>'mark_paid_action_options',
-    'data'=>$mark_paid_action_options,
-    'value'=>$cl_mark_paid_action_option));
+    'class'=>'dropdown-field-with-button',
+    'data'=>$mark_paid_action_options));
   $form->addInput(array('type'=>'submit','name'=>'btn_mark_paid','value'=>$i18n->get('button.submit')));
+  $smarty->assign('show_mark_paid', true);
 }
 
 if ($request->isPost()) {
@@ -126,6 +103,7 @@ $smarty->assign('client_name', $client['name']);
 $smarty->assign('client_address', $client['address']);
 $smarty->assign('show_project', MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode);
 $smarty->assign('show_task', MODE_PROJECTS_AND_TASKS == $trackingMode);
+$smarty->assign('show_paid_column', $user->isPluginEnabled('ps'));
 $smarty->assign('invoice_items', $invoice_items);
 $smarty->assign('colspan', $colspan);
 $smarty->assign('title', $i18n->get('title.view_invoice'));

@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -32,7 +8,7 @@ import('form.ActionForm');
 import('ttReportHelper');
 
 // Access checks.
-if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports'))) {
+if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports') || ttAccessAllowed('view_all_reports')  || ttAccessAllowed('view_client_reports'))) {
   header('Location: access_denied.php');
   exit();
 }
@@ -54,7 +30,7 @@ $bean = new ActionForm('reportBean', new Form('reportForm'), $request);
 $type = $request->getParameter('type');
 
 // Also, there are 2 variations of report: totals only, or normal. Totals only means that the report
-// is grouped by (either date, user, client, project, task, or cf_1) and user only needs to see subtotals by group.
+// is grouped by (either date, user, client, project, or task) and user only needs to see subtotals by group.
 $totals_only = $bean->getAttribute('chtotalsonly');
 
 // Obtain items.
@@ -117,12 +93,27 @@ if ('xml' == $type) {
       print "<row>\n";
 
       print "\t<date><![CDATA[".$item['date']."]]></date>\n";
-      if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) print "\t<user><![CDATA[".$item['user']."]]></user>\n"; 
+      if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) print "\t<user><![CDATA[".$item['user']."]]></user>\n";
+      // User custom fields.
+      if (isset($custom_fields) && $custom_fields->userFields) {
+        foreach ($custom_fields->userFields as $userField) {
+          $field_name = 'user_field_'.$userField['id'];
+          $checkbox_control_name = 'show_'.$field_name;
+          if ($bean->getAttribute($checkbox_control_name)) print "\t<$field_name><![CDATA[".$item[$field_name]."]]></$field_name>\n";
+        }
+      }
       if ($bean->getAttribute('chclient')) print "\t<client><![CDATA[".$item['client']."]]></client>\n";
       if ($bean->getAttribute('chclientnumber')) print "\t<client_number><![CDATA[".$item['client_number']."]]></client_number>\n";
       if ($bean->getAttribute('chproject')) print "\t<project><![CDATA[".$item['project']."]]></project>\n";
       if ($bean->getAttribute('chtask')) print "\t<task><![CDATA[".$item['task']."]]></task>\n";
-      if ($bean->getAttribute('chcf_1')) print "\t<cf_1><![CDATA[".$item['cf_1']."]]></cf_1>\n";
+      // Time custom fields.
+      if (isset($custom_fields) && $custom_fields->timeFields) {
+        foreach ($custom_fields->timeFields as $timeField) {
+          $field_name = 'time_field_'.$timeField['id'];
+          $checkbox_control_name = 'show_'.$field_name;
+          if ($bean->getAttribute($checkbox_control_name)) print "\t<$field_name><![CDATA[".$item[$field_name]."]]></$field_name>\n";
+        }
+      }
       if ($bean->getAttribute('chstart')) print "\t<start><![CDATA[".$item['start']."]]></start>\n";
       if ($bean->getAttribute('chfinish')) print "\t<finish><![CDATA[".$item['finish']."]]></finish>\n";
       if ($bean->getAttribute('chduration')) {
@@ -141,6 +132,7 @@ if ('xml' == $type) {
           print $item['expense'];
         print "]]></cost>\n";
       }
+      if ($bean->getAttribute('chapproved')) print "\t<approved><![CDATA[".$item['approved']."]]></approved>\n";
       if ($bean->getAttribute('chpaid')) print "\t<paid><![CDATA[".$item['paid']."]]></paid>\n";
       if ($bean->getAttribute('chip')) {
         $ip = $item['modified'] ? $item['modified_ip'].' '.$item['modified'] : $item['created_ip'].' '.$item['created'];
@@ -148,6 +140,7 @@ if ('xml' == $type) {
       }
       if ($bean->getAttribute('chinvoice')) print "\t<invoice><![CDATA[".$item['invoice']."]]></invoice>\n";
       if ($bean->getAttribute('chbillable')) print "\t<billable><![CDATA[".$item['billable']."]]></billable>\n";
+      if ($bean->getAttribute('chtimesheet')) print "\t<timesheet><![CDATA[".$item['timesheet_name']."]]></timesheet>\n";
 
       print "</row>\n";
     }
@@ -198,32 +191,64 @@ if ('csv' == $type) {
     // Normal report. Print headers.
     print '"'.$i18n->get('label.date').'"';
     if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) print ',"'.$i18n->get('label.user').'"';
+    // User custom field labels.
+    if (isset($custom_fields) && $custom_fields->userFields) {
+      foreach ($custom_fields->userFields as $userField) {
+        $field_name = 'user_field_'.$userField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) print ',"'.ttNeutralizeForCsv($userField['label']).'"';
+      }
+    }
     if ($bean->getAttribute('chclient')) print ',"'.$i18n->get('label.client').'"';
 	if ($bean->getAttribute('chclientnumber')) print ',"'.$i18n->get('label.client_number').'"';
     if ($bean->getAttribute('chproject')) print ',"'.$i18n->get('label.project').'"';
     if ($bean->getAttribute('chtask')) print ',"'.$i18n->get('label.task').'"';
-    if ($bean->getAttribute('chcf_1')) print ',"'.$custom_fields->fields[0]['label'].'"';
+    // Time custom field labels.
+    if (isset($custom_fields) && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) print ',"'.ttNeutralizeForCsv($timeField['label']).'"';
+      }
+    }
     if ($bean->getAttribute('chstart')) print ',"'.$i18n->get('label.start').'"';
     if ($bean->getAttribute('chfinish')) print ',"'.$i18n->get('label.finish').'"';
     if ($bean->getAttribute('chduration')) print ',"'.$i18n->get('label.duration').'"';
     if ($bean->getAttribute('chunits')) print ',"'.$i18n->get('label.work_units_short').'"';
     if ($bean->getAttribute('chnote')) print ',"'.$i18n->get('label.note').'"';
     if ($bean->getAttribute('chcost')) print ',"'.$i18n->get('label.cost').'"';
+    if ($bean->getAttribute('chapproved')) print ',"'.$i18n->get('label.approved').'"';
     if ($bean->getAttribute('chpaid')) print ',"'.$i18n->get('label.paid').'"';
     if ($bean->getAttribute('chip')) print ',"'.$i18n->get('label.ip').'"';
     if ($bean->getAttribute('chinvoice')) print ',"'.$i18n->get('label.invoice').'"';
 	if ($bean->getAttribute('chbillable')) print ',"'.$i18n->get('label.billable').'"';
+    if ($bean->getAttribute('chtimesheet')) print ',"'.$i18n->get('label.timesheet').'"';
     print "\n";
 
     // Print items.
     foreach ($items as $item) {
       print '"'.$item['date'].'"';
-      if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) print ',"'.str_replace('"','""',$item['user']).'"';
-      if ($bean->getAttribute('chclient')) print ',"'.str_replace('"','""',$item['client']).'"';
-      if ($bean->getAttribute('chclientnumber')) print ',"'.str_replace('"','""',$item['client_number']).'"';
-      if ($bean->getAttribute('chproject')) print ',"'.str_replace('"','""',$item['project']).'"';
-      if ($bean->getAttribute('chtask')) print ',"'.str_replace('"','""',$item['task']).'"';
-      if ($bean->getAttribute('chcf_1')) print ',"'.str_replace('"','""',$item['cf_1']).'"';
+      if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) print ',"'.ttNeutralizeForCsv($item['user']).'"';
+      // User custom fields.
+      if (isset($custom_fields) && $custom_fields->userFields) {
+        foreach ($custom_fields->userFields as $userField) {
+          $field_name = 'user_field_'.$userField['id'];
+          $checkbox_control_name = 'show_'.$field_name;
+          if ($bean->getAttribute($checkbox_control_name)) print ',"'.ttNeutralizeForCsv($item[$field_name]).'"';
+        }
+      }
+      if ($bean->getAttribute('chclient')) print ',"'.ttNeutralizeForCsv($item['client']).'"';
+	  if ($bean->getAttribute('chclientnumber')) print ',"'.ttNeutralizeForCsv($item['client_number']).'"';
+      if ($bean->getAttribute('chproject')) print ',"'.ttNeutralizeForCsv($item['project']).'"';
+      if ($bean->getAttribute('chtask')) print ',"'.ttNeutralizeForCsv($item['task']).'"';
+      // Time custom fields.
+      if (isset($custom_fields) && $custom_fields->timeFields) {
+        foreach ($custom_fields->timeFields as $timeField) {
+          $field_name = 'time_field_'.$timeField['id'];
+          $checkbox_control_name = 'show_'.$field_name;
+          if ($bean->getAttribute($checkbox_control_name)) print ',"'.ttNeutralizeForCsv($item[$field_name]).'"';
+        }
+      }
       if ($bean->getAttribute('chstart')) print ',"'.$item['start'].'"';
       if ($bean->getAttribute('chfinish')) print ',"'.$item['finish'].'"';
       if ($bean->getAttribute('chduration')) {
@@ -233,20 +258,22 @@ if ('csv' == $type) {
         print ',"'.$val.'"';
       }
       if ($bean->getAttribute('chunits')) print ',"'.$item['units'].'"';
-      if ($bean->getAttribute('chnote')) print ',"'.str_replace(array("\n", "\r"), ' ', str_replace('"','""',$item['note'])).'"';
+      if ($bean->getAttribute('chnote')) print ',"'.ttNeutralizeForCsv($item['note']).'"';
       if ($bean->getAttribute('chcost')) {
         if ($user->can('manage_invoices') || $user->isClient())
           print ',"'.$item['cost'].'"';
         else
           print ',"'.$item['expense'].'"';
       }
+      if ($bean->getAttribute('chapproved')) print ',"'.$item['approved'].'"';
       if ($bean->getAttribute('chpaid')) print ',"'.$item['paid'].'"';
       if ($bean->getAttribute('chip')) {
         $ip = $item['modified'] ? $item['modified_ip'].' '.$item['modified'] : $item['created_ip'].' '.$item['created'];
         print ',"'.$ip.'"';
       }
-      if ($bean->getAttribute('chinvoice')) print ',"'.str_replace('"','""',$item['invoice']).'"';
-	  if ($bean->getAttribute('chbillable')) print ',"'.$item['billable'].'"';
+      if ($bean->getAttribute('chinvoice')) print ',"'.ttNeutralizeForCsv($item['invoice']).'"';
+	  if ($bean->getAttribute('chbillable')) print ',"'.ttNeutralizeForCsv($item['billable']).'"';
+      if ($bean->getAttribute('chtimesheet')) print ',"'.ttNeutralizeForCsv($item['timesheet_name']).'"';
       print "\n";
     }
   }

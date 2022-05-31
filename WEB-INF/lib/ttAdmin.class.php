@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttRoleHelper');
 
@@ -64,6 +40,9 @@ class ttAdmin {
     }
 
     // Now do actual work with all entities.
+
+    // Delete group files.
+    ttAdmin::deleteGroupFiles($group_id);
 
     // Some things cannot be marked deleted as we don't have the status field for them.
     // Just delete such things (until we have a better way to deal with them).
@@ -139,6 +118,7 @@ class ttAdmin {
     // Update group manager.
     $user_id = $fields['user_id'];
     $login_part = 'login = '.$mdb2->quote($fields['new_login']);
+    $password_part = '';
     if ($fields['password1'])
       $password_part = ', password = md5('.$mdb2->quote($fields['password1']).')';
     $name_part = ', name = '.$mdb2->quote($fields['user_name']);
@@ -186,7 +166,6 @@ class ttAdmin {
 
   // getOrgDetails obtains group name and its top manager details.
   static function getOrgDetails($group_id) {
-    $result = array();
     $mdb2 = getConnection();
 
     // Note: current code works with properly set top manager (rank 512).
@@ -213,6 +192,20 @@ class ttAdmin {
     return false;
   }
 
+ // getOrg obtains org_id for group.
+  static function getOrg($group_id) {
+    $mdb2 = getConnection();
+
+    $sql = "select org_id from tt_groups where id = $group_id";
+    $res = $mdb2->query($sql);
+    if (!is_a($res, 'PEAR_Error')) {
+      $val = $res->fetchRow();
+      return $val;
+    }
+
+    return false;
+  }
+
   // deleteGroupEntriesFromTable is a generic helper function for markGroupDeleted.
   // It deletes entries in ONE table belonging to a given group.
   static function deleteGroupEntriesFromTable($group_id, $table_name) {
@@ -229,6 +222,7 @@ class ttAdmin {
     $mdb2 = getConnection();
 
     // Add modified info to sql for some tables, depending on table name.
+    $modified_part = '';
     if ($table_name == 'tt_users') {
       global $user;
       $modified_part = ', modified = now(), modified_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', modified_by = '.$user->id;
@@ -245,6 +239,7 @@ class ttAdmin {
     global $user;
     $mdb2 = getConnection();
 
+    $group_key = $mdb2->quote(ttRandomString());
     $name = $mdb2->quote($fields['group_name']);
     $currency = $mdb2->quote($fields['currency']);
     $lang = $mdb2->quote($fields['lang']);
@@ -252,8 +247,8 @@ class ttAdmin {
     $created_ip = $mdb2->quote($_SERVER['REMOTE_ADDR']);
     $created_by = $user->id;
 
-    $sql = "insert into tt_groups (name, currency, lang, created, created_ip, created_by)".
-      " values($name, $currency, $lang, $created, $created_ip, $created_by)";
+    $sql = "insert into tt_groups (group_key, name, currency, lang, created, created_ip, created_by)".
+      " values($group_key, $name, $currency, $lang, $created, $created_ip, $created_by)";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error')) return false;
 
@@ -294,7 +289,7 @@ class ttAdmin {
 
   // The createOrg function creates an organization in Time Tracker.
   static function createOrg($fields) {
-    // There are 3 steps that we need to 2 when creating a new organization.
+    // There are 3 steps that we need to do when creating a new organization.
     //   1. Create a new group with null parent_id.
     //   2. Create pre-defined roles in it.
     //   3. Create a top manager account for new group.
@@ -312,6 +307,86 @@ class ttAdmin {
     if (!ttAdmin::createOrgManager($fields))
       return false;
 
+    return true;
+  }
+
+  // deleteGroupFiles deletes files attached to all entities in the entire group.
+  // Note that it is a permanent delete, not "mark deleted" by design.
+  static function deleteGroupFiles($group_id) {
+
+    $org = ttAdmin::getOrg($group_id);
+    $org_id = $org['org_id'];
+
+    // Delete all group files from the database.
+    $mdb2 = getConnection();
+    $sql = "delete from tt_files where org_id = $org_id and group_id = $group_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    if ($affected == 0) return true; // Do not call file storage utility.
+
+    // Try to make a call to file storage server.
+    $storage_uri = defined('FILE_STORAGE_URI') ? FILE_STORAGE_URI : "https://www.anuko.com/files/";
+    $deletegroupfiles_uri = $storage_uri.'deletegroupfiles';
+
+    // Obtain site id.
+    $sql = "select param_value as site_id from tt_site_config where param_name = 'locker_id'";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $site_id = $val['site_id'];
+    if (!$site_id) return true; // Nothing to do.
+
+    // Obtain site key.
+    $sql = "select param_value as site_key from tt_site_config where param_name = 'locker_key'";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $site_key = $val['site_key'];
+    if (!$site_key) return true; // Can't continue without site key.
+
+    // Obtain org key.
+    $sql = "select group_key as org_key from tt_groups where id = $org_id";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $org_key = $val['org_key'];
+    if (!$org_key) return true; // Can't continue without org key.
+
+    // Obtain group key.
+    $sql = "select group_key as group_key from tt_groups where id = $group_id";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $group_key = $val['group_key'];
+    if (!$group_key) return true; // Can't continue without group key.
+
+    $curl_fields = array('site_id' => $site_id,
+      'site_key' => $site_key,
+      'org_id' => $org_id,
+      'org_key' => $org_key,
+      'group_id' => $group_id,
+      'group_key' => $group_key);
+
+    // url-ify the data for the POST.
+    $fields_string = '';
+    foreach($curl_fields as $key=>$value) { $fields_string .= $key.'='.$value.'&'; }
+    $fields_string = rtrim($fields_string, '&');
+
+    // Open connection.
+    $ch = curl_init();
+
+    // Set the url, number of POST vars, POST data.
+    curl_setopt($ch, CURLOPT_URL, $deletegroupfiles_uri);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    // Execute a post request.
+    $result = curl_exec($ch);
+
+    // Close connection.
+    curl_close($ch);
+
+    // Many things can go wrong with a remote call to file storage facility.
+    // By design, we ignore such errors.
     return true;
   }
 }

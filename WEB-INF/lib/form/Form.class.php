@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Form class is a container for HTML forms we use in the application.
 // It contains an array of $elements - which are individual input controls
@@ -53,12 +29,15 @@ class Form {
       case 'text':
         import('form.TextField');
         $el = new TextField($params['name']);
+        if (isset($params['class'])) $el->setCssClass($params['class']);
         if (isset($params['maxlength'])) $el->setMaxLength($params['maxlength']);
+        if (isset($params['placeholder'])) $el->setPLaceholder($params['placeholder']);
         break;
 
       case 'password':
         import('form.PasswordField');
         $el = new PasswordField($params['name']);
+        if (isset($params['class'])) $el->setCssClass($params['class']);
         if (isset($params['maxlength'])) $el->setMaxLength($params['maxlength']);
         break;
 
@@ -95,6 +74,12 @@ class Form {
         $el = new Submit($params['name']);
         break;
 
+      case 'upload':
+        import('form.UploadFile');
+        $el = new UploadFile($params['name']);
+        if (isset($params['maxsize'])) $el->setMaxSize($params['maxsize']);
+        break;
+
 // TODO: refactoring ongoing down from here.
 			case "checkboxgroup":
 			    import('form.CheckboxGroup');
@@ -110,6 +95,7 @@ class Form {
 			    $el = new Combobox($params["name"]);
 			    $el->setData(@$params["data"]);
 			    $el->setDataDefault(@$params["empty"]);
+                            if (isset($params['class'])) $el->setCssClass($params['class']);
                             if (isset($params["multiple"])) {
                               $el->setMultiple($params["multiple"]);
                               $el->name .= '[]'; // Add brackets to the end of name to get back an array on POST.
@@ -128,12 +114,6 @@ class Form {
 			    $el = new Table($params["name"]);
 			    $el->setData(@$params["data"]);
 			    $el->setWidth(@$params["width"]);
-			    break;
-			    
-			case "upload":
-			    import('form.UploadFile');
-			    $el = new UploadFile($params["name"]);
-			    if (isset($params["maxsize"])) $el->setMaxSize($params["maxsize"]);
 			    break;
 		}
 		if ($el!=null) {

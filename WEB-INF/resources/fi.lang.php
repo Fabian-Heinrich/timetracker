@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -33,8 +9,6 @@ $i18n_language = 'Finnish (Suomi)';
 $i18n_months = array('Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu');
 $i18n_weekdays = array('Sunnuntai', 'Maanantai', 'Tiistai', 'Keskiviikko', 'Torstai', 'Perjantai', 'Lauantai');
 $i18n_weekdays_short = array('Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La');
-// format mm/dd
-$i18n_holidays = array('01/01', '01/06', '05/01', '06/24', '12/06', '12/25', '12/26');
 
 $i18n_key_words = array(
 
@@ -45,21 +19,25 @@ $i18n_key_words = array(
 'menu.forum' => 'Keskustelupalsta',
 'menu.help' => 'Apua',
 // TODO: translate the following.
-// 'menu.create_group' => 'Create Group',
+// 'menu.register' => 'Register',
 'menu.profile' => 'Profiili',
 // TODO: translate the following.
 // 'menu.group' => 'Group',
 'menu.plugins' => 'Lisäosat',
 'menu.time' => 'Tunnit',
+// TODO: translate the following.
+// 'menu.puncher' => 'Punch',
+// 'menu.week' => 'Week',
 'menu.expenses' => 'Kulut',
 'menu.reports' => 'Raportit',
+// TODO: translate the following.
+// 'menu.timesheets' => 'Timesheets',
 'menu.charts' => 'Kaaviot',
 'menu.projects' => 'Projektit',
 'menu.tasks' => 'Tehtävät',
 'menu.users' => 'Käyttäjät',
 // TODO: translate the following.
 // 'menu.groups' => 'Groups',
-// 'menu.subgroups' => 'Subgroups',
 'menu.export' => 'Vie',
 'menu.clients' => 'Asiakkaat',
 'menu.options' => 'Optiot',
@@ -77,6 +55,7 @@ $i18n_key_words = array(
 'error.sys' => 'Järjestelmävirhe.',
 'error.db' => 'Tietokantavirhe.',
 // TODO: translate the following.
+// 'error.registered_recently' => 'Registered recently.',
 // 'error.feature_disabled' => 'Feature is disabled.',
 'error.field' => 'Virheellinen "{0}" tieto.',
 'error.empty' => 'Kenttä "{0}" on tyhjä.',
@@ -89,6 +68,9 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'error.record' => 'Select record.',
 'error.auth' => 'Virheellinen käyttäjänimi tai salasana.',
+// TODO: translate the following.
+// 'error.2fa_code' => 'Invalid 2FA code.',
+// 'error.weak_password' => 'Weak password.',
 'error.user_exists' => 'Tämä käyttäjänimi on jo olemassa.',
 // TODO: translate the following.
 // 'error.object_exists' => 'Object with this name already exists.',
@@ -96,6 +78,8 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'error.role_exists' => 'Role with this rank already exists.',
 'error.no_invoiceable_items' => 'Ei laskutettavia syötteitä.',
+// TODO: translate the following.
+// 'error.no_records' => 'There are no records.',
 'error.no_login' => 'Tuntematon käyttäjänimi.',
 'error.no_groups' => 'Tietokanta on tyhjä. Kirjaudu ylläpitäjänä ja luo uusi tiimi.',  // TODO: replace "team" with "group".
 'error.upload' => 'Virhe tiedoston lataus.',
@@ -114,6 +98,7 @@ $i18n_key_words = array(
 // 'error.format' => 'Invalid file format.',
 // 'error.user_count' => 'Limit on user count.',
 // 'error.expired' => 'Expiration date reached.',
+// 'error.file_storage' => 'File storage server error.', // See comment in English file.
 
 // Warning messages.
 // TODO: translate the following.
@@ -141,9 +126,17 @@ $i18n_key_words = array(
 'button.export' => 'Vie tiimi', // TODO: replace "team" with "group".
 'button.import' => 'Tuo tiimi', // TODO: replace "team" with "group".
 'button.close' => 'Sulje',
+// TODO: translate the following.
+// 'button.start' => 'Start',
 'button.stop' => 'Lopeta',
+// TODO: translate the following.
+// 'button.approve' => 'Approve',
+// 'button.disapprove' => 'Disapprove',
+// 'button.sync' => 'Sync', // Used in Android app. The meaning is to synchronize offline time records with server.
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
+// TODO: translate the following.
+// 'label.menu' => 'Menu',
 'label.group_name' => 'Tiimin nimi', // TODO: replace "team" with "group".
 'label.address' => 'Osoite',
 'label.currency' => 'Valuutta',
@@ -201,6 +194,7 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'label.day_view' => 'Day view',
 // 'label.week_view' => 'Week view',
+// 'label.puncher' => 'Puncher',
 'label.id' => 'ID',
 'label.language' => 'Kieli',
 'label.decimal_mark' => 'Desimaalierotin',
@@ -219,18 +213,18 @@ $i18n_key_words = array(
 'label.ldap_hint' => 'Syötä <b>Windows-käyttäjätunnuksesi</b> ja <b>salasanasi</b> ao. kenttiin.',
 'label.required_fields' => '* - pakolliset kentät',
 'label.on_behalf' => 'puolesta',
-'label.role_manager' => '(esimies)',
-'label.role_comanager' => '(apu-esimies)',
-'label.role_admin' => '(ylläpitäjä)',
 'label.page' => 'Sivu',
 // TODO: translate the following.
 // 'label.condition' => 'Condition',
 // 'label.yes' => 'yes',
 // 'label.no' => 'no',
+// 'label.sort' => 'Sort',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 'label.custom_fields' => 'Omat kentät',
 // TODO: translate the following.
 // 'label.monthly_quotas' => 'Monthly quotas',
+// TODO: translate the following.
+// 'label.entity' => 'Entity',
 'label.type' => 'Tyyppi',
 'label.type_dropdown' => 'pudotusvalikko',
 'label.type_text' => 'teksti',
@@ -246,20 +240,42 @@ $i18n_key_words = array(
 // 'label.mark_paid' => 'Mark paid',
 // 'label.week_note' => 'Week note',
 // 'label.week_list' => 'Week list',
+// 'label.weekends' => 'Weekends',
 // 'label.work_units' => 'Work units',
 // 'label.work_units_short' => 'Units',
 'label.totals_only' => 'Vain yhteissummat',
 // TODO: translate the following.
 // 'label.quota' => 'Quota',
+// 'label.timesheet' => 'Timesheet',
+// 'label.submitted' => 'Submitted',
+// 'label.approved' => 'Approved',
+// 'label.approval' => 'Report approval',
+// 'label.mark_approved' => 'Mark approved',
+// 'label.template' => 'Template',
+// 'label.bind_templates_with_projects' => 'Bind templates with projects',
+// 'label.prepopulate_note' => 'Prepopulate Note field',
+// 'label.attachments' => 'Attachments',
+// 'label.files' => 'Files',
+// 'label.file' => 'File',
+'label.active_users' => 'Aktiiviset käyttäjät',
+'label.inactive_users' => 'Ei-aktiiviset käyttäjät',
+
+// Entity names. We use lower case (in English) because they are used in dropdowns, too.
+// They are used to associate a custom field with an entity type.
+// TODO: translate the following.
+// 'entity.time' => 'time',
+// 'entity.user' => 'user',
+// 'entity.project' => 'project',
 
 // Form titles.
 'title.error' => 'Virhe',
 // TODO: Translate the following.
 // 'title.success' => 'Success',
 'title.login' => 'Kirjautuminen',
+// TODO: translate the follolwing.
+// 'title.2fa' => 'Two Factor Authentication',
 'title.groups' => 'Tiimit', // TODO: change "teams" to "groups".
 // TODO: translate the following.
-// 'title.subgroups' => 'Subgroups',
 // 'title.add_group' => 'Adding Group',
 'title.edit_group' => 'Tiimin muokkaus', // TODO: change "team" to "group".
 'title.delete_group' => 'Tiimin poisto', // TODO: change "team" to "group".
@@ -268,16 +284,27 @@ $i18n_key_words = array(
 'title.time' => 'Tuntien kirjaus',
 'title.edit_time_record' => 'Tuntikirjausten muokkaus',
 'title.delete_time_record' => 'Tuntikirjausten poisto',
+// TODO: Translate the following.
+// 'title.time_files' => 'Time Record Files',
+// 'title.puncher' => 'Puncher',
 'title.expenses' => 'Kulut',
 'title.edit_expense' => 'Kulutietojen muokkaus',
 'title.delete_expense' => 'Kulutiedon poisto',
+// TODO: translate the following.
+// 'title.expense_files' => 'Expense Item Files',
 'title.reports' => 'Raportit',
 'title.report' => 'Raportti',
 'title.send_report' => 'Raportin lähetys',
+// TODO: Translate the following.
+// 'title.timesheets' => 'Timesheets',
+// 'title.timesheet' => 'Timesheet',
+// 'title.timesheet_files' => 'Timesheet Files',
 'title.invoice' => 'Lasku',
 'title.send_invoice' => 'Laskun lähetys',
 'title.charts' => 'Kaaviot',
 'title.projects' => 'Projektit',
+// TODO: translate the following.
+// 'title.project_files' => 'Project Files',
 'title.add_project' => 'Projektin lisäys',
 'title.edit_project' => 'Projektin muokkaus',
 'title.delete_project' => 'Projektin poisto',
@@ -307,10 +334,15 @@ $i18n_key_words = array(
 'title.edit_notification' => 'Ilmoituksen muokkaus',
 'title.delete_notification' => 'Ilmoituksen poisto',
 // TODO: translate the following.
+// 'title.add_timesheet' => 'Adding Timesheet',
+// 'title.edit_timesheet' => 'Editing Timesheet',
+// 'title.delete_timesheet' => 'Deleting Timesheet',
 // 'title.monthly_quotas' => 'Monthly Quotas',
 'title.export' => 'Tiimitietojen vienti', // TODO: replace "team" with "group".
 'title.import' => 'Tiimitietojen tunti', // TODO: replace "team" with "group".
 'title.options' => 'Optiot',
+// TODO: translate the following.
+// 'title.display_options' => 'Display Options',
 'title.profile' => 'Profiili',
 'title.plugins' => 'Lisäosat',
 'title.cf_custom_fields' => 'Omat kentät',
@@ -326,6 +358,13 @@ $i18n_key_words = array(
 // 'title.week_view' => 'Week View',
 // 'title.swap_roles' => 'Swapping Roles',
 // 'title.work_units' => 'Work Units',
+// 'title.templates' => 'Templates',
+// 'title.add_template' => 'Adding Template',
+// 'title.edit_template' => 'Editing Template',
+// 'title.delete_template' => 'Deleting Template',
+// 'title.edit_file' => 'Editing File',
+// 'title.delete_file' => 'Deleting File',
+// 'title.download_file' => 'Downloading File',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -351,13 +390,19 @@ $i18n_key_words = array(
 'dropdown.clients' => 'asiakkaat',
 'dropdown.select' => '--- valitse ---',
 'dropdown.select_invoice' => '--- valitse lasku ---',
+// TODO: translate the following.
+// 'dropdown.select_timesheet' => '--- select timesheet ---',
 'dropdown.status_active' => 'aktiivinen',
 'dropdown.status_inactive' => 'inaktiivinen',
 'dropdown.delete' => 'poista',
 'dropdown.do_not_delete' => 'älä poista',
 // TODO: translate the following.
+// 'dropdown.approved' => 'approved',
+// 'dropdown.not_approved' => 'not approved',
 // 'dropdown.paid' => 'paid',
 // 'dropdown.not_paid' => 'not paid',
+// 'dropdown.ascending' => 'ascending',
+// 'dropdown.descending' => 'descending',
 
 // Below is a section for strings that are used on individual forms. When a string is used only on one form it should be placed here.
 // One exception is for closely related forms such as "Time" and "Editing Time Record" with similar controls. In such cases
@@ -366,15 +411,26 @@ $i18n_key_words = array(
 
 // Login form. See example at https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'Salasana unohtunut?',
-'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> on yksinkertainen ja helppokäyttöinen vapaan koodin tuntiseurantaohjelmisto.',
+// TODO: check translation of form.login.about - is open source "vapaan koodin"?
+'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> on vapaan koodin tuntiseurantaohjelmisto.',
+
+// Email subject and body for two-factor authentication.
+// TODO: translate the following.
+// 'email.2fa_code.subject' => 'Anuko Time Tracker two-factor authentication code',
+// 'email.2fa_code.body' => "Dear User,\n\nYour two-factor authentication code is:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+// TODO: translate the following.
+// 'form.2fa.hint' => 'Check your email for 2FA code and enter it here.',
+// 'form.2fa.2fa_code' => '2FA code',
 
 // Resetting Password form. See example at https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => 'Salasanan nollauspyyntöviesti lähetetty.',
 'form.reset_password.email_subject' => 'Anuko Time Tracker -salasanan nollauspyyntö',
-// TODO: English string has changed. "from IP added. Re-translate the beginning.
-// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is a simple, easy to use, open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
+// TODO: English string has changed. Re-translate.
+// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is an open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
 // "IP %s" probably sounds awkward.
-'form.reset_password.email_body' => "Hyvä käyttäjä,\n\nJoku, IP %s, on pyytänyt nollaamaan Anuko Time Tracker -ohjelman salasanasi. Jos haluat nollata salasanasi, käy sivulla \n\n%s\n\nAnuko Time Tracker on yksinkertainen ja helppokäyttöinen vapaan koodin tuntiseurantaohjelmisto. Lisätietoja sivulla https://www.anuko.com.\n\n",
+'form.reset_password.email_body' => "Hyvä käyttäjä,\n\nJoku, IP %s, on pyytänyt nollaamaan Anuko Time Tracker -ohjelman salasanasi. Jos haluat nollata salasanasi, käy sivulla \n\n%s\n\nAnuko Time Tracker on vapaan koodin tuntiseurantaohjelmisto. Lisätietoja sivulla https://www.anuko.com.\n\n",
 
 // Changing Password form. See example at https://timetracker.anuko.com/password_change.php?ref=1.
 'form.change_password.tip' => 'Syötä uusi salasana ja osoita Tallenna.',
@@ -403,9 +459,16 @@ $i18n_key_words = array(
 'form.reports.include_not_billable' => 'ei-laskutettavat',
 'form.reports.include_invoiced' => 'laskutettu',
 'form.reports.include_not_invoiced' => 'laskuttamatta',
+// TODO: translate the following.
+// 'form.reports.include_assigned' => 'assigned',
+// 'form.reports.include_not_assigned' => 'not assigned',
+// 'form.reports.include_pending' => 'pending',
 'form.reports.select_period' => 'Valitse ajanjakso',
 'form.reports.set_period' => 'tai aseta päivät',
 'form.reports.show_fields' => 'Näytä kentät',
+// TODO: translate the following.
+// 'form.reports.time_fields' => 'Time fields',
+// 'form.reports.user_fields' => 'User fields',
 'form.reports.group_by' => 'Ryhmittelyperuste',
 'form.reports.group_by_no' => '--- ei ryhmitystä ---',
 'form.reports.group_by_date' => 'päivä',
@@ -419,9 +482,20 @@ $i18n_key_words = array(
 'form.report.export' => 'Vie',
 // TODO: translate the following.
 // 'form.report.assign_to_invoice' => 'Assign to invoice',
+// 'form.report.assign_to_timesheet' => 'Assign to timesheet',
 
-// Invoice form. See example at https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+// TODO: translate the following.
+// 'form.timesheets.active_timesheets' => 'Active Timesheets',
+// 'form.timesheets.inactive_timesheets' => 'Inactive Timesheets',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+// TODO: translate the following.
+// 'form.templates.active_templates' => 'Active Templates',
+// 'form.templates.inactive_templates' => 'Inactive Templates',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => 'Laskun numero',
 'form.invoice.person' => 'Henkilö',
 
@@ -444,10 +518,9 @@ $i18n_key_words = array(
 'form.tasks.inactive_tasks' => 'Ei-aktiiviset tehtävät',
 
 // Users form. See example at https://timetracker.anuko.com/users.php
-'form.users.active_users' => 'Aktiiviset käyttäjät',
-'form.users.inactive_users' => 'Ei-aktiiviset käyttäjät',
- // TODO: translate the following.
- // 'form.users.uncompleted_entry' => 'User has an uncompleted time entry',
+// TODO: translate the following.
+// 'form.users.uncompleted_entry_today' => 'User has an uncompleted time entry today',
+// 'form.users.uncompleted_entry' => 'User has an uncompleted time entry',
 'form.users.role' => 'Rooli',
 'form.users.manager' => 'Esimies',
 'form.users.comanager' => 'Apuesimies',
@@ -495,7 +568,8 @@ $i18n_key_words = array(
 'form.group_edit.12_hours' => '12-tuntinen',
 'form.group_edit.24_hours' => '24-tuntinen',
 // TODO: translate the following.
-// 'form.group_edit.show_holidays' => 'Show holidays',
+// 'form.group_edit.display_options' => 'Display options',
+// 'form.group_edit.holidays' => 'Holidays',
 'form.group_edit.tracking_mode' => 'Seurantamuoto',
 'form.group_edit.mode_time' => 'aika',
 'form.group_edit.mode_projects' => 'projektit',
@@ -506,20 +580,27 @@ $i18n_key_words = array(
 'form.group_edit.type_duration' => 'kesto',
 // TODO: translate the following.
 // 'form.group_edit.punch_mode' => 'Punch mode',
+// 'form.group_edit.one_uncompleted' => 'One uncompleted',
 // 'form.group_edit.allow_overlap' => 'Allow overlap',
 // 'form.group_edit.future_entries' => 'Future entries',
 // 'form.group_edit.uncompleted_indicators' => 'Uncompleted indicators',
 // 'form.group_edit.confirm_save' => 'Confirm saving',
-// 'form.group_edit.allow_ip' => 'Allow IP',
+// 'form.group_edit.advanced_settings' => 'Advanced settings',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+// TODO: Translate the following.
+// 'form.group_advanced_edit.allow_ip' => 'Allow IP',
+// 'form.group_advanced_edit.password_complexity' => 'Password complexity',
+// 'form.group_advanced_edit.2fa' => 'Two factor authentication',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 // TODO: translate the following.
 // 'form.group_delete.hint' => 'Are you sure you want to delete the entire group?',
 
 // Mail form. See example at https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'Lähettäjä',
 'form.mail.to' => 'Vastaanottaja',
 'form.mail.report_subject' => 'Time Tracker -raportti',
+// TODO: English string for form.mail.footer changed. Re-translate.
 'form.mail.footer' => 'Anuko Time Tracker on yksinkertainen ja helppokäyttöinen vapaan koodin tuntiseurantaohjelmisto. Lisätietoja sivulla <a href="https://www.anuko.com">www.anuko.com</a>.',
 'form.mail.report_sent' => 'Raportti lähetetty.',
 'form.mail.invoice_sent' => 'Lasku lähetetty.',
@@ -548,7 +629,7 @@ $i18n_key_words = array(
 // 'role.user.description' => 'A regular member without management rights.',
 // 'role.client.label' => 'Client',
 // 'role.client.low_case_label' => 'client',
-// 'role.client.description' => 'A client can view its own reports, charts, and invoices.',
+// 'role.client.description' => 'A client can view its own data.',
 // 'role.supervisor.label' => 'Supervisor',
 // 'role.supervisor.low_case_label' => 'supervisor',
 // 'role.supervisor.description' => 'A person with a small set of management rights.',
@@ -564,4 +645,20 @@ $i18n_key_words = array(
 // 'role.admin.label' => 'Administrator',
 // 'role.admin.low_case_label' => 'administrator',
 // 'role.admin.description' => 'Site adminsitrator.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+// TODO: translate the following.
+// 'form.timesheet_view.submit_subject' => 'Timesheet approval request',
+// 'form.timesheet_view.submit_body' => "A new timesheet requires approval.<p>User: %s.",
+// 'form.timesheet_view.approve_subject' => 'Timesheet approved',
+// 'form.timesheet_view.approve_body' => "Your timesheet %s was approved.<p>%s",
+// 'form.timesheet_view.disapprove_subject' => 'Timesheet not approved',
+// 'form.timesheet_view.disapprove_body' => "Your timesheet %s was not approved.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+// TODO: translate the following.
+// 'form.display_options.note_on_separate_row' => 'Note on separate row',
+// 'form.display_options.not_complete_days' => 'Not complete days',
+// 'form.display_options.inactive_projects' => 'Inactive projects',
+// 'form.display_options.custom_css' => 'Custom CSS',
 );

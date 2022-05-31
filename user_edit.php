@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -53,13 +29,22 @@ $show_quota = $user->isPluginEnabled('mq');
 if ($user->isPluginEnabled('cl'))
   $clients = ttGroupHelper::getActiveClients();
 
+// Use custom fields plugin if it is enabled.
+if ($user->isPluginEnabled('cf')) {
+  require_once('plugins/CustomFields.class.php');
+  $custom_fields = new CustomFields();
+  $smarty->assign('custom_fields', $custom_fields);
+}
+
 $show_projects = MODE_PROJECTS == $user->getTrackingMode() || MODE_PROJECTS_AND_TASKS == $user->getTrackingMode();
+$projects = array();
 if ($show_projects) {
   $projects = ttGroupHelper::getActiveProjects();
   if (count($projects) == 0) $show_projects = false;
 }
+$cl_name = $cl_login = $cl_password1 = $cl_password2 = $cl_email =
+$cl_role_id = $cl_client_id = $cl_quota_percent = $cl_rate = null;
 $assigned_projects = array();
-
 if ($request->isPost()) {
   $cl_name = trim($request->getParameter('name'));
   $cl_login = trim($request->getParameter('login'));
@@ -71,8 +56,20 @@ if ($request->isPost()) {
   $cl_role_id = $request->getParameter('role');
   $cl_client_id = $request->getParameter('client');
   $cl_status = $request->getParameter('status');
-  $cl_rate = $request->getParameter('rate');
   $cl_quota_percent = $request->getParameter('quota_percent');
+  // If we have user custom fields - collect input.
+  if (isset($custom_fields) && $custom_fields->userFields) {
+    foreach ($custom_fields->userFields as $userField) {
+      $control_name = 'user_field_'.$userField['id'];
+      $userCustomFields[$userField['id']] = array('field_id' => $userField['id'],
+        'control_name' => $control_name,
+        'label' => $userField['label'],
+        'type' => $userField['type'],
+        'required' => $userField['required'],
+        'value' => trim($request->getParameter($control_name)));
+    }
+  }
+  $cl_rate = $request->getParameter('rate');
   $cl_projects = $request->getParameter('projects');
   if (is_array($cl_projects)) {
     foreach ($cl_projects as $p) {
@@ -89,8 +86,20 @@ if ($request->isPost()) {
   $cl_name = $user_details['name'];
   $cl_login = $user_details['login'];
   $cl_email = $user_details['email'];
-  $cl_rate = str_replace('.', $user->getDecimalMark(), $user_details['rate']);
   $cl_quota_percent = str_replace('.', $user->getDecimalMark(), $user_details['quota_percent']);
+  // If we have user custom fields - collect values from database.
+  if (isset($custom_fields) && $custom_fields->userFields) {
+    foreach ($custom_fields->userFields as $userField) {
+      $control_name = 'user_field_'.$userField['id'];
+      $userCustomFields[$userField['id']] = array('field_id' => $userField['id'],
+        'control_name' => $control_name,
+        'label' => $userField['label'],
+        'type' => $userField['type'],
+        'required' => $userField['required'],
+        'value' => $custom_fields->getEntityFieldValue(CustomFields::ENTITY_USER, $user_id, $userField['id'], $userField['type']));
+    }
+  }
+  $cl_rate = str_replace('.', $user->getDecimalMark(), $user_details['rate']);
   $cl_role_id = $user_details['role_id'];
   $cl_client_id = $user_details['client_id'];
   $cl_status = $user_details['status'];
@@ -102,18 +111,33 @@ if ($request->isPost()) {
 }
 
 $form = new Form('userForm');
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','style'=>'width: 300px;','value'=>$cl_name));
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'login','style'=>'width: 300px;','value'=>$cl_login));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','value'=>$cl_name));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'login','value'=>$cl_login));
 if (!$auth->isPasswordExternal()) {
   $form->addInput(array('type'=>'password','maxlength'=>'30','name'=>'pas1','value'=>$cl_password1));
   $form->addInput(array('type'=>'password','maxlength'=>'30','name'=>'pas2','value'=>$cl_password2));
 }
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'email','style'=>'width: 300px;','value'=>$cl_email));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'email','value'=>$cl_email));
 
 $active_roles = ttTeamHelper::getActiveRolesForUser();
-$form->addInput(array('type'=>'combobox','onchange'=>'handleClientControl()','name'=>'role','value'=>$cl_role_id,'data'=>$active_roles, 'datakeys'=>array('id', 'name')));
+$form->addInput(array('type'=>'combobox','onchange'=>'handleClientRole()','name'=>'role','value'=>$cl_role_id,'data'=>$active_roles, 'datakeys'=>array('id', 'name')));
 if ($user->isPluginEnabled('cl'))
   $form->addInput(array('type'=>'combobox','name'=>'client','value'=>$cl_client_id,'data'=>$clients,'datakeys'=>array('id', 'name'),'empty'=>array(''=>$i18n->get('dropdown.select'))));
+
+// If we have custom fields - add controls for them.
+if (isset($custom_fields) && $custom_fields->userFields) {
+  foreach ($custom_fields->userFields as $userField) {
+    $field_name = 'user_field_'.$userField['id'];
+    if ($userField['type'] == CustomFields::TYPE_TEXT) {
+      $form->addInput(array('type'=>'text','name'=>$field_name,'value'=>$userCustomFields[$userField['id']]['value']));
+    } elseif ($userField['type'] == CustomFields::TYPE_DROPDOWN) {
+      $form->addInput(array('type'=>'combobox','name'=>$field_name,
+      'data'=>CustomFields::getOptions($userField['id']),
+      'value'=>$userCustomFields[$userField['id']]['value'],
+      'empty'=>array(''=>$i18n->get('dropdown.select'))));
+    }
+  }
+}
 
 $form->addInput(array('type'=>'combobox','name'=>'status','value'=>$cl_status,
   'data'=>array(ACTIVE=>$i18n->get('dropdown.status_active'),INACTIVE=>$i18n->get('dropdown.status_inactive'))));
@@ -124,7 +148,6 @@ if ($show_quota)
 // Define classes for the projects table.
 class NameCellRenderer extends DefaultCellRenderer {
   function render(&$table, $value, $row, $column, $selected = false) {
-    $this->setOptions(array('width'=>200));
     $this->setValue('<label for = "'.$table->name.'_'.$row.'">'.htmlspecialchars($value).'</label>');
     return $this->toString();
   }
@@ -132,8 +155,8 @@ class NameCellRenderer extends DefaultCellRenderer {
 class RateCellRenderer extends DefaultCellRenderer {
   function render(&$table, $value, $row, $column, $selected = false) {
     global $assigned_projects;
-
     $field = new FloatField('rate_'.$table->getValueAtName($row,'id'));
+    $field->setCssClass('project-rate-field');
     $field->setFormName($table->getFormName());
     $field->setSize(5);
     $field->setFormat('.2');
@@ -146,9 +169,8 @@ class RateCellRenderer extends DefaultCellRenderer {
 }
 // Create projects table.
 $table = new Table('projects');
+$table->setCssClass('project-rate-table');
 $table->setIAScript('setRate');
-$table->setTableOptions(array('width'=>'100%','cellspacing'=>'1','cellpadding'=>'3','border'=>'0'));
-$table->setRowOptions(array('valign'=>'top','class'=>'tableHeader'));
 $table->setData($projects);
 $table->setKeyField('id');
 $table->setValue($cl_projects);
@@ -168,12 +190,23 @@ if ($request->isPost()) {
     if (!ttValidString($cl_password2)) $err->add($i18n->get('error.field'), $i18n->get('label.confirm_password'));
     if ($cl_password1 !== $cl_password2)
       $err->add($i18n->get('error.not_equal'), $i18n->get('label.password'), $i18n->get('label.confirm_password'));
+    // Check password complexity.
+    if (!ttCheckPasswordComplexity($cl_password1))
+      $err->add($i18n->get('error.weak_password'));
   }
   if (!ttValidEmail($cl_email, true)) $err->add($i18n->get('error.field'), $i18n->get('label.email'));
   // Require selection of a client for a client role.
   if ($user->isPluginEnabled('cl') && ttRoleHelper::isClientRole($cl_role_id) && !$cl_client_id) $err->add($i18n->get('error.client'));
-  if (!ttValidFloat($cl_rate, true)) $err->add($i18n->get('error.field'), $i18n->get('form.users.default_rate'));
+  if (!ttValidStatus($cl_status)) $err->add($i18n->get('error.field'), $i18n->get('label.status'));
   if (!ttValidFloat($cl_quota_percent, true)) $err->add($i18n->get('error.field'), $i18n->get('label.quota'));
+    // Validate input in user custom fields.
+  if (isset($custom_fields) && $custom_fields->userFields) {
+    foreach ($userCustomFields as $userField) {
+      // Validation is the same for text and dropdown fields.
+      if (!ttValidString($userField['value'], !$userField['required'])) $err->add($i18n->get('error.field'), htmlspecialchars($userField['label']));
+    }
+  }
+  if (!ttValidFloat($cl_rate, true)) $err->add($i18n->get('error.field'), $i18n->get('form.users.default_rate'));
 
   if ($err->no()) {
     $existing_user = ttUserHelper::getUserByLogin($cl_login);
@@ -193,11 +226,16 @@ if ($request->isPost()) {
         $fields['client_id'] = $cl_client_id;
       }
 
-      if (ttUserHelper::update($user_id, $fields)) {
+      $result = ttUserHelper::update($user_id, $fields);
+      // Update user custom fields if we have them.
+      if ($result && isset($custom_fields) && $custom_fields->userFields) {
+        $result = $custom_fields->updateEntityFields(CustomFields::ENTITY_USER, $user_id, $userCustomFields);
+      }
 
+      if ($result) {
         // If our own login changed, set new one in cookie to remember it.
         if (($user_id == $user->id) && ($user->login != $cl_login)) {
-          setcookie('tt_login', $cl_login, time() + COOKIE_EXPIRE, '/');
+          setcookie(LOGIN_COOKIE_NAME, $cl_login, time() + COOKIE_EXPIRE, '/');
         }
 
         // In case the name of the "on behalf" user has changed - set it in session.
@@ -207,9 +245,9 @@ if ($request->isPost()) {
 
         // If we deactivated our own account, do housekeeping and logout.
         if ($user->id == $user_id && !is_null($cl_status) && $cl_status == INACTIVE) {
-          // Remove tt_login cookie that stores login name.
-          unset($_COOKIE['tt_login']);
-          setcookie('tt_login', NULL, -1);
+          // Remove LOGIN_COOKIE_NAME cookie that stores login name.
+          unset($_COOKIE[LOGIN_COOKIE_NAME]);
+          setcookie(LOGIN_COOKIE_NAME, NULL, -1);
 
           $auth->doLogout();
           header('Location: login.php');
@@ -240,7 +278,7 @@ $smarty->assign('auth_external', $auth->isPasswordExternal());
 $smarty->assign('active_roles', $active_roles);
 $smarty->assign('can_swap', $can_swap);
 $smarty->assign('forms', array($form->getName()=>$form->toArray()));
-$smarty->assign('onload', 'onLoad="document.userForm.name.focus();handleClientControl();"');
+$smarty->assign('onload', 'onLoad="document.userForm.name.focus();handleClientRole();"');
 $smarty->assign('show_quota', $show_quota);
 $smarty->assign('show_projects', $show_projects);
 $smarty->assign('user_id', $user_id);

@@ -1,37 +1,13 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
 import('ttGroupHelper');
-import('DateAndTime');
 import('ttTimeHelper');
 import('ttExpenseHelper');
+import('ttDate');
 
 // Access checks.
 if (!(ttAccessAllowed('track_own_expenses') || ttAccessAllowed('track_expenses'))) {
@@ -45,20 +21,29 @@ if (!$user->isPluginEnabled('ex')) {
 $cl_id = (int)$request->getParameter('id');
 // Get the expense item we are editing.
 $expense_item = ttExpenseHelper::getItem($cl_id);
-if (!$expense_item || $expense_item['invoice_id']) {
-  // Prohibit editing not ours or invoiced items.
+if (!$expense_item) $expense_item = ttExpenseHelper::getOnBehalfItem($cl_id);
+if (!$expense_item || $expense_item['approved'] || $expense_item['invoice_id']) {
+  // Prohibit editing not ours, approved, or invoiced items.
   header('Location: access_denied.php');
   exit();
 }
+if ($request->isPost()) {
+  // Validate that browser_today parameter is in correct format.
+  $browser_today = $request->getParameter('browser_today');
+  if ($browser_today && !ttValidDbDateFormatDate($browser_today)) {
+    header('Location: access_denied.php');
+    exit();
+  }
+}
 // End of access checks.
 
-$item_date = new DateAndTime(DB_DATEFORMAT, $expense_item['date']);
+$item_date = new ttDate($expense_item['date']);
 $confirm_save = $user->getConfigOption('confirm_save');
 $trackingMode = $user->getTrackingMode();
 $show_project = MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode;
 
 // Initialize variables.
-$cl_date = $cl_client = $cl_project = $cl_item_name = $cl_cost = null;
+$cl_date = $cl_client = $cl_project = $cl_item_name = $cl_cost = $cl_paid = null;
 if ($request->isPost()) {
   $cl_date = trim($request->getParameter('date'));
   $cl_client = $request->getParameter('client');
@@ -66,14 +51,14 @@ if ($request->isPost()) {
   $cl_item_name = trim($request->getParameter('item_name'));
   $cl_cost = trim($request->getParameter('cost'));
   if ($user->isPluginEnabled('ps'))
-    $cl_paid = $request->getParameter('paid');
+    $cl_paid = (bool)$request->getParameter('paid');
 } else {
   $cl_date = $item_date->toString($user->getDateFormat());
   $cl_client = $expense_item['client_id'];
   $cl_project = $expense_item['project_id'];
   $cl_item_name = $expense_item['name'];
   $cl_cost = $expense_item['cost'];
-  $cl_paid = $expense_item['paid'];
+  $cl_paid = (bool)$expense_item['paid'];
 }
 
 // Initialize elements of 'expenseItemForm'.
@@ -85,7 +70,6 @@ if (MODE_TIME == $trackingMode && $user->isPluginEnabled('cl')) {
   $form->addInput(array('type'=>'combobox',
     'onchange'=>'fillProjectDropdown(this.value);',
     'name'=>'client',
-    'style'=>'width: 250px;',
     'value'=>$cl_client,
     'data'=>$active_clients,
     'datakeys'=>array('id', 'name'),
@@ -98,16 +82,16 @@ if ($show_project) {
   $project_list = $user->getAssignedProjects();
   $form->addInput(array('type'=>'combobox',
     'name'=>'project',
-    'style'=>'width: 250px;',
     'value'=>$cl_project,
     'data'=>$project_list,
     'datakeys'=>array('id','name'),
     'empty'=>array(''=>$i18n->get('dropdown.select'))));
 
   // Dropdown for clients if the clients plugin is enabled.
+  $client_list = array();
   if ($user->isPluginEnabled('cl')) {
     $active_clients = ttGroupHelper::getActiveClients(true);
-    // We need an array of assigned project ids to do some trimming. 
+    // We need an array of assigned project ids to do some trimming.
     foreach($project_list as $project)
       $projects_assigned_to_user[] = $project['id'];
 
@@ -124,7 +108,6 @@ if ($show_project) {
     $form->addInput(array('type'=>'combobox',
       'onchange'=>'fillProjectDropdown(this.value);',
       'name'=>'client',
-      'style'=>'width: 250px;',
       'value'=>$cl_client,
       'data'=>$client_list,
       'datakeys'=>array('id', 'name'),
@@ -137,15 +120,13 @@ if ($predefined_expenses) {
     $form->addInput(array('type'=>'combobox',
       'onchange'=>'recalculateCost();',
       'name'=>'predefined_expense',
-      'style'=>'width: 250px;',
-      'value'=>$cl_predefined_expense,
       'data'=>$predefined_expenses,
       'datakeys'=>array('id', 'name'),
       'empty'=>array(''=>$i18n->get('dropdown.select'))));
-    $form->addInput(array('type'=>'text','onchange'=>'recalculateCost();','maxlength'=>'40','name'=>'quantity','style'=>'width: 100px;','value'=>$cl_quantity));
+    $form->addInput(array('type'=>'text','onchange'=>'recalculateCost();','maxlength'=>'40','name'=>'quantity'));
 }
-$form->addInput(array('type'=>'textarea','maxlength'=>'800','name'=>'item_name','style'=>'width: 250px; height:'.NOTE_INPUT_HEIGHT.'px;','value'=>$cl_item_name));
-$form->addInput(array('type'=>'text','maxlength'=>'40','name'=>'cost','style'=>'width: 100px;','value'=>$cl_cost));
+$form->addInput(array('type'=>'textarea','maxlength'=>'800','name'=>'item_name','value'=>$cl_item_name));
+$form->addInput(array('type'=>'text','maxlength'=>'40','name'=>'cost','value'=>$cl_cost));
 if ($user->can('manage_invoices') && $user->isPluginEnabled('ps'))
   $form->addInput(array('type'=>'checkbox','name'=>'paid','value'=>$cl_paid));
 $form->addInput(array('type'=>'datefield','name'=>'date','maxlength'=>'20','value'=>$cl_date));
@@ -160,7 +141,7 @@ $form->addInput(array('type'=>'submit','name'=>'btn_delete','value'=>$i18n->get(
 
 if ($request->isPost()) {
   // Validate user input.
-  if ($user->isPluginEnabled('cl') && $user->isPluginEnabled('cm') && !$cl_client)
+  if ($user->isPluginEnabled('cl') && $user->isOptionEnabled('client_required') && !$cl_client)
     $err->add($i18n->get('error.client'));
   if ($show_project && !$cl_project)
     $err->add($i18n->get('error.project'));
@@ -169,12 +150,14 @@ if ($request->isPost()) {
   if (!ttValidDate($cl_date)) $err->add($i18n->get('error.field'), $i18n->get('label.date'));
 
   // This is a new date for the expense item.
-  $new_date = new DateAndTime($user->getDateFormat(), $cl_date);
+  $new_date = new ttDate($cl_date, $user->getDateFormat());
 
   // Prohibit creating entries in future.
-  if (!$user->getConfigOption('future_entries')) {
-    $browser_today = new DateAndTime(DB_DATEFORMAT, $request->getParameter('browser_today', null));
-    if ($new_date->after($browser_today))
+  if (!$user->isOptionEnabled('future_entries')) {
+    $browser_today = new ttDate($request->getParameter('browser_today', null));
+    $server_tomorrow = new ttDate();
+    $server_tomorrow->incrementDay();
+    if ($new_date->after($browser_today) || $new_date->after($server_tomorrow))
       $err->add($i18n->get('error.future_date'));
   }
   if (!ttTimeHelper::canAdd()) $err->add($i18n->get('error.expired'));
@@ -197,9 +180,9 @@ if ($request->isPost()) {
 
     // Now, an update.
     if ($err->no()) {
-      if (ttExpenseHelper::update(array('id'=>$cl_id,'date'=>$new_date->toString(DB_DATEFORMAT),
+      if (ttExpenseHelper::update(array('id'=>$cl_id,'date'=>$new_date->toString(),
           'client_id'=>$cl_client,'project_id'=>$cl_project,'name'=>$cl_item_name,'cost'=>$cl_cost,'paid'=>$cl_paid))) {
-        header('Location: expenses.php?date='.$new_date->toString(DB_DATEFORMAT));
+        header('Location: expenses.php?date='.$new_date->toString());
         exit();
       }
     }
@@ -213,9 +196,9 @@ if ($request->isPost()) {
 
     // Now, a new insert.
     if ($err->no()) {
-      if (ttExpenseHelper::insert(array('date'=>$new_date->toString(DB_DATEFORMAT),'client_id'=>$cl_client,
+      if (ttExpenseHelper::insert(array('date'=>$new_date->toString(),'client_id'=>$cl_client,
           'project_id'=>$cl_project,'name'=>$cl_item_name,'cost'=>$cl_cost,'status'=>1))) {
-        header('Location: expenses.php?date='.$new_date->toString(DB_DATEFORMAT));
+        header('Location: expenses.php?date='.$new_date->toString());
         exit();
       } else
         $err->add($i18n->get('error.db'));
@@ -237,7 +220,6 @@ $smarty->assign('show_project', $show_project);
 $smarty->assign('predefined_expenses', $predefined_expenses);
 $smarty->assign('client_list', $client_list);
 $smarty->assign('project_list', $project_list);
-$smarty->assign('task_list', $task_list);
 $smarty->assign('title', $i18n->get('title.edit_expense'));
 $smarty->assign('content_page_name', 'expense_edit.tpl');
 $smarty->display('index.tpl');

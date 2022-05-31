@@ -1,37 +1,18 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // ttWeekViewHelper class groups together functions used in week view.
 class ttWeekViewHelper {
 
   // getRecordsForInterval - returns time records for a user for a given interval of dates.
-  static function getRecordsForInterval($user_id, $start_date, $end_date) {
+  static function getRecordsForInterval($start_date, $end_date, $includeFiles = false) {
     global $user;
+
+    $user_id = $user->getUser();
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
     $sql_time_format = "'%k:%i'"; //  24 hour format.
     if ('%I:%M %p' == $user->time_format)
       $sql_time_format = "'%h:%i %p'"; // 12 hour format for MySQL TIME_FORMAT function.
@@ -39,40 +20,73 @@ class ttWeekViewHelper {
     $result = array();
     $mdb2 = getConnection();
 
-    $client_field = null;
-    if ($user->isPluginEnabled('cl'))
-      $client_field = ', c.id as client_id, c.name as client';
-
-    $custom_field_1 = null;
-    if ($user->isPluginEnabled('cf')) {
-      $custom_fields = new CustomFields();
-      $cf_1_type = $custom_fields->fields[0]['type'];
-      if ($cf_1_type == CustomFields::TYPE_TEXT) {
-        $custom_field_1 = ', cfl.value as cf_1_value';
-      } elseif ($cf_1_type == CustomFields::TYPE_DROPDOWN) {
-        $custom_field_1 = ', cfo.id as cf_1_id, cfo.value as cf_1_value';
+    $fields = array(); // An array of fields for database query.
+    array_push($fields, 'l.id as id');
+    array_push($fields, 'l.date as date');
+    array_push($fields, "TIME_FORMAT(l.start, $sql_time_format) as start");
+    array_push($fields, "TIME_FORMAT(sec_to_time(time_to_sec(l.start) + time_to_sec(l.duration)), $sql_time_format) as finish");
+    array_push($fields, "TIME_FORMAT(l.duration, '%k:%i') as duration");
+    array_push($fields, "p.id as project_id");
+    array_push($fields, "p.name as project");
+    array_push($fields, "t.id as task_id");
+    array_push($fields, "t.name as task");
+    array_push($fields, "l.comment");
+    array_push($fields, "l.billable");
+    array_push($fields, "l.invoice_id");
+    if ($user->isPluginEnabled('cl')) {
+      array_push($fields, "c.id as client_id");
+      array_push($fields, "c.name as client");
+    }
+    // Add time custom fields.
+    global $custom_fields;
+    if ($custom_fields && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        if ($timeField['type'] == CustomFields::TYPE_TEXT) {
+          $cflTable = 'cfl'.$timeField['id'];
+          array_push($fields, "$cflTable.value as $field_name");
+        } elseif ($timeField['type'] == CustomFields::TYPE_DROPDOWN) {
+          $cfoTable = 'cfo'.$timeField['id'];
+          array_push($fields, "$cfoTable.id as $field_name".'_option_id');
+          array_push($fields, "$cfoTable.value as $field_name");
+        }
       }
+    }
+    if ($includeFiles) {
+      array_push($fields, 'if(Sub1.entity_id is null, 0, 1) as has_files');
     }
 
     $left_joins = " left join tt_projects p on (l.project_id = p.id)".
       " left join tt_tasks t on (l.task_id = t.id)";
     if ($user->isPluginEnabled('cl'))
       $left_joins .= " left join tt_clients c on (l.client_id = c.id)";
-    if ($user->isPluginEnabled('cf')) {
-      if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT)
-        $left_joins .= 'left join tt_custom_field_log cfl on (l.id = cfl.log_id and cfl.status = 1) left join tt_custom_field_options cfo on (cfl.value = cfo.id) ';
-      elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN)
-        $left_joins .= 'left join tt_custom_field_log cfl on (l.id = cfl.log_id and cfl.status = 1) left join tt_custom_field_options cfo on (cfl.option_id = cfo.id) ';
+
+    // Left joins for time custom fields.
+    if ($custom_fields && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        $cflTable = 'cfl'.$timeField['id'];
+        if ($timeField['type'] == CustomFields::TYPE_TEXT) {
+          // Add one join for each text field.
+          $left_joins .= " left join tt_custom_field_log $cflTable on ($cflTable.log_id = l.id and $cflTable.status = 1 and $cflTable.field_id = ".$timeField['id'].')';
+        } elseif ($timeField['type'] == CustomFields::TYPE_DROPDOWN) {
+          $cfoTable = 'cfo'.$timeField['id'];
+          // Add two joins for each dropdown field.
+          $left_joins .= " left join tt_custom_field_log $cflTable on ($cflTable.log_id = l.id and $cflTable.status = 1 and $cflTable.field_id = ".$timeField['id'].')';
+          $left_joins .= " left join tt_custom_field_options $cfoTable on ($cfoTable.field_id = $cflTable.field_id and $cfoTable.id = $cflTable.option_id)";
+        }
+      }
+    }
+    if ($includeFiles) {
+      $left_joins .=  " left join (select distinct entity_id from tt_files".
+      " where entity_type = 'time' and group_id = $group_id and org_id = $org_id and status = 1) Sub1".
+      " on (l.id = Sub1.entity_id)";
     }
 
-    $sql = "select l.id as id, l.date as date, TIME_FORMAT(l.start, $sql_time_format) as start,
-      TIME_FORMAT(sec_to_time(time_to_sec(l.start) + time_to_sec(l.duration)), $sql_time_format) as finish,
-      TIME_FORMAT(l.duration, '%k:%i') as duration, p.id as project_id, p.name as project,
-      t.id as task_id, t.name as task, l.comment, l.billable, l.invoice_id $client_field $custom_field_1
-      from tt_log l
-      $left_joins
-      where l.date >= '$start_date' and l.date <= '$end_date' and l.user_id = $user_id and l.status = 1
-      order by l.date, p.name, t.name, l.start, l.id";
+    $sql = "select ".join(', ', $fields)." from tt_log l $left_joins".
+      " where l.date >= '$start_date' and l.date <= '$end_date'".
+      " and l.user_id = $user_id and l.group_id = $group_id and l.org_id = $org_id and l.status = 1".
+      " order by l.date, p.name, t.name, l.start, l.id";
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
       while ($val = $res->fetchRow()) {
@@ -88,15 +102,14 @@ class ttWeekViewHelper {
   // getDataForWeekView - builds an array to render a table of durations and comments for a week view.
   // In a week view we want one row representing the same attributes to have 7 values for each day of week.
   // We identify similar records by a combination of client, billable, project, task, and custom field values.
-  // This will allow us to extend the feature when more custom fields are added.
   //
-  // "cl:546,bl:1,pr:23456,ts:27464,cf_1:example text"
-  // The above means client 546, billable, project 23456, task 27464, custom field text "example text".
+  // "cl:546,bl:1,pr:23456,ts:27464,time_field_856:BASE64ENCODEDtext,time_field_857:2345"
+  // The above means client 546, billable, project 23456, task 27464, custom time_field_856 is base64 encoded,
+  // custom time_field_857 option id is 2345".
   //
-  // "cl:546,bl:0,pr:23456,ts:27464,cf_1:7623"
-  // The above means client 546, not billable, project 23456, task 27464, custom field option id 7623.
+  // We use base64 encoding for text fields to make parsing of such things possible when text contains commas, etc.
   //
-  // Daily comments are implemented as alternate rows following week durations.
+  // Daily comments are implemented as alternate rows following week durations (when enabled).
   // For example: row_0 - new entry durations, row_1 - new entry daily comments,
   //              row_2 - existing entry durations, row_3 - existing entry comments, etc.
   //
@@ -127,7 +140,7 @@ class ttWeekViewHelper {
   //   ),
   //
   //   array( // Row 2.
-  //     'row_id' => 'cl:546,bl:1,pr:23456,ts:27464,cf_1:7623_0',
+  //     'row_id' => 'cl:546,bl:1,pr:23456,ts:27464,time_field_857:7623_0',
   //     'label' => 'Anuko - Time Tracker - Coding - Option 2',
   //     'day_0' => array('control_id' => '2_day_0', 'tt_log_id' => 12345, 'duration' => '00:00'),
   //     'day_1' => array('control_id' => '2_day_1', 'tt_log_id' => 12346, 'duration' => '01:00'),
@@ -138,7 +151,7 @@ class ttWeekViewHelper {
   //     'day_6' => array('control_id' => '2_day_6', 'tt_log_id' => null, 'duration' => null)
   //   ),
   //   array( // Row 3.
-  //     'row_id' => 'cl:546,bl:1,pr:23456,ts:27464,cf_1:7623_0_notes',
+  //     'row_id' => 'cl:546,bl:1,pr:23456,ts:27464,time_field_857:7623_0_notes',
   //     'label' => 'Notes:',
   //     'day_0' => array('control_id' => '3_day_0', 'tt_log_id' => 12345, 'note' => 'Comment one'),
   //     'day_1' => array('control_id' => '3_day_1', 'tt_log_id' => 12346, 'note' => 'Comment two'),
@@ -154,6 +167,7 @@ class ttWeekViewHelper {
     global $i18n;
 
     $dataArray = array();
+    $includeNotes = $user->isOptionEnabled('week_notes');
 
     // Construct the first row for a brand new entry.
     $dataArray[] = array('row_id' => null,'label' => $i18n->get('form.week.new_entry').':'); // Insert row.
@@ -162,7 +176,7 @@ class ttWeekViewHelper {
       $control_id = '0_'. $dayHeaders[$i];
       $dataArray[0][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'duration' => null);
     }
-    if ($user->isPluginEnabled('wvns')) {
+    if ($includeNotes) {
       // Construct the second row for daily comments for a brand new entry.
       $dataArray[] = array('row_id' => null,'label' => $i18n->get('label.notes').':'); // Insert row.
       // Insert empty cells with proper control ids.
@@ -196,7 +210,7 @@ class ttWeekViewHelper {
           $dataArray[$pos][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'duration' => null);
         }
         // Insert row for comments.
-        if ($user->isPluginEnabled('wvns')) {
+        if ($includeNotes) {
           $dataArray[] = array('row_id' => $row_id.'_notes','label' => $i18n->get('label.notes').':');
           $pos++;
           // Insert empty cells with proper control ids.
@@ -210,7 +224,7 @@ class ttWeekViewHelper {
       // Insert actual cell data from $record (one cell only).
       $dataArray[$pos][$day_header] = array('control_id' => $pos.'_'. $day_header, 'tt_log_id' => $record['id'],'duration' => $record['duration']);
       // Insert existing comment from $record into the comment cell.
-      if ($user->isPluginEnabled('wvns')) {
+      if ($includeNotes) {
         $pos++;
         $dataArray[$pos][$day_header] = array('control_id' => $pos.'_'. $day_header, 'tt_log_id' => $record['id'],'note' => $record['comment']);
       }
@@ -228,26 +242,26 @@ class ttWeekViewHelper {
     global $i18n;
 
     // First, determine past week start and end dates.
-    $objDate = new DateAndTime(DB_DATEFORMAT, $startDate);
-    $objDate->decDay(7);
-    $pastWeekStartDate = $objDate->toString(DB_DATEFORMAT);
-    $objDate->incDay(6);
-    $pastWeekEndDate = $objDate->toString(DB_DATEFORMAT);
+    $objDate = new ttDate($startDate);
+    $objDate->decrementDay(7);
+    $pastWeekStartDate = $objDate->toString();
+    $objDate->incrementDay(6);
+    $pastWeekEndDate = $objDate->toString();
     unset($objDate);
 
     // Obtain past week(s) records.
-    $records = ttWeekViewHelper::getRecordsForInterval($user->getUser(), $pastWeekStartDate, $pastWeekEndDate);
-    // Handle potential situation of no records by re-trying for up to 4 more previous weeks (after a long vacation, etc.).
+    $records = ttWeekViewHelper::getRecordsForInterval($pastWeekStartDate, $pastWeekEndDate);
+    // Handle a potential situation of no records by re-trying for up to 4 more previous weeks (after a long vacation, etc.).
     if (!$records) {
       for ($i = 0; $i < 4; $i++) {
-        $objDate = new DateAndTime(DB_DATEFORMAT, $pastWeekStartDate);
-        $objDate->decDay(7);
-        $pastWeekStartDate = $objDate->toString(DB_DATEFORMAT);
-        $objDate->incDay(6);
-        $pastWeekEndDate = $objDate->toString(DB_DATEFORMAT);
+        $objDate = new ttDate($pastWeekStartDate);
+        $objDate->decrementDay(7);
+        $pastWeekStartDate = $objDate->toString();
+        $objDate->incrementDay(6);
+        $pastWeekEndDate = $objDate->toString();
         unset($objDate);
 
-        $records = ttWeekViewHelper::getRecordsForInterval($user->getUser(), $pastWeekStartDate, $pastWeekEndDate);
+        $records = ttWeekViewHelper::getRecordsForInterval($pastWeekStartDate, $pastWeekEndDate);
         // Break out of the loop if we found something.
         if ($records) break;
       }
@@ -260,12 +274,15 @@ class ttWeekViewHelper {
       $control_id = '0_'. $dayHeaders[$i];
       $dataArray[0][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'duration' => null);
     }
-    // Construct the second row for daily comments for a brand new entry.
-    $dataArray[] = array('row_id' => null,'label' => $i18n->get('label.notes').':'); // Insert row.
-    // Insert empty cells with proper control ids.
-    for ($i = 0; $i < 7; $i++) {
-      $control_id = '1_'. $dayHeaders[$i];
-      $dataArray[1][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'note' => null);
+    $includeNotes = $user->isOptionEnabled('week_notes');
+    if ($includeNotes) {
+      // Construct the second row for daily comments for a brand new entry.
+      $dataArray[] = array('row_id' => null,'label' => $i18n->get('label.notes').':'); // Insert row.
+      // Insert empty cells with proper control ids.
+      for ($i = 0; $i < 7; $i++) {
+        $control_id = '1_'. $dayHeaders[$i];
+        $dataArray[1][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'note' => null);
+      }
     }
 
     // Iterate through records and build an "empty" $dataArray.
@@ -284,14 +301,16 @@ class ttWeekViewHelper {
           $dataArray[$pos][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'duration' => null);
         }
         // Insert row for comments.
-        $dataArray[] = array('row_id' => $row_id.'_notes','label' => $i18n->get('label.notes').':');
-        $pos++;
-        // Insert empty cells with proper control ids.
-        for ($i = 0; $i < 7; $i++) {
-          $control_id = $pos.'_'. $dayHeaders[$i];
-          $dataArray[$pos][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'note' => null);
+        if ($includeNotes) {
+          $dataArray[] = array('row_id' => $row_id.'_notes','label' => $i18n->get('label.notes').':');
+          $pos++;
+          // Insert empty cells with proper control ids.
+          for ($i = 0; $i < 7; $i++) {
+            $control_id = $pos.'_'. $dayHeaders[$i];
+            $dataArray[$pos][$dayHeaders[$i]] = array('control_id' => $control_id, 'tt_log_id' => null,'note' => null);
+          }
+          $pos--;
         }
-        $pos--;
       }
     }
 
@@ -326,18 +345,20 @@ class ttWeekViewHelper {
     // Insert label.
     global $i18n;
     $dayTotals['label'] = $i18n->get('label.day_total').':';
-
+    foreach($dayHeaders as $dayHeader) {
+      $dayTotals[$dayHeader] = 0;
+    }
     foreach ($dataArray as $row) {
       foreach($dayHeaders as $dayHeader) {
         if (array_key_exists($dayHeader, $row)) {
-          $minutes = ttTimeHelper::toMinutes($row[$dayHeader]['duration']);
+          $minutes = ttTimeHelper::toMinutes(@$row[$dayHeader]['duration']);
           $dayTotals[$dayHeader] += $minutes;
         }
       }
     }
     // Convert minutes to hh:mm for display.
     foreach($dayHeaders as $dayHeader) {
-      $dayTotals[$dayHeader] = ttTimeHelper::toAbsDuration($dayTotals[$dayHeader]);
+      $dayTotals[$dayHeader] = ttTimeHelper::minutesToDuration($dayTotals[$dayHeader]);
     }
     return $dayTotals;
   }
@@ -345,23 +366,11 @@ class ttWeekViewHelper {
   // getDayHeadersForWeek - obtains day column headers for week view, which are simply day numbers in month.
   static function getDayHeadersForWeek($start_date) {
     $dayHeaders = array();
-    $objDate = new DateAndTime(DB_DATEFORMAT, $start_date);
-    $dayHeaders[] = (string) $objDate->getDate(); // It returns an int on first call.
-    if (strlen($dayHeaders[0]) == 1)              // Which is an implementation detail of DateAndTime class.
-      $dayHeaders[0] = '0'.$dayHeaders[0];        // Add a 0 for single digit day.
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate(); // After incDay it returns a string with leading 0, when necessary.
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate();
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate();
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate();
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate();
-    $objDate->incDay();
-    $dayHeaders[] = $objDate->getDate();
-    unset($objDate);
+    $objDate = new ttDate($start_date);
+    for ($i = 0; $i < 7; $i++) {
+      $dayHeaders[] = $objDate->getDay();
+      $objDate->incrementDay();
+    }
     return $dayHeaders;
   }
 
@@ -369,10 +378,10 @@ class ttWeekViewHelper {
   static function getLockedDaysForWeek($start_date) {
     global $user;
     $lockedDays = array();
-    $objDate = new DateAndTime(DB_DATEFORMAT, $start_date);
+    $objDate = new ttDate($start_date);
     for ($i = 0; $i < 7; $i++) {
       $lockedDays[] = $user->isDateLocked($objDate);
-      $objDate->incDay();
+      $objDate->incrementDay();
     }
     unset($objDate);
     return $lockedDays;
@@ -381,13 +390,13 @@ class ttWeekViewHelper {
   // makeRowIdentifier - builds a string identifying a row for a week view from a single record properties.
   //                     Note that the return value is without a suffix.
   // For example:
-  // "cl:546,bl:0,pr:23456,ts:27464,cf_1:example text"
-  // "cl:546,bl:1,pr:23456,ts:27464,cf_1:7623"
+  // "cl:546,bl:0,pr:23456,ts:27464,time_field_856:example text,time_field_857:7623"
   static function makeRowIdentifier($record) {
     global $user;
     // Start with client.
+    $row_identifier = '';
     if ($user->isPluginEnabled('cl'))
-      $row_identifier = $record['client_id'] ? 'cl:'.$record['client_id'] : '';
+      $row_identifier .= $record['client_id'] ? 'cl:'.$record['client_id'] : '';
     // Add billable flag.
     if (!empty($row_identifier)) $row_identifier .= ',';
     $row_identifier .= 'bl:'.$record['billable'];
@@ -395,14 +404,18 @@ class ttWeekViewHelper {
     $row_identifier .= $record['project_id'] ? ',pr:'.$record['project_id'] : '';
     // Add task.
     $row_identifier .= $record['task_id'] ? ',ts:'.$record['task_id'] : '';
-    // Add custom field 1.
-    if ($user->isPluginEnabled('cf')) {
-      if ($record['cf_1_id'])
-        $row_identifier .= ',cf_1:'.$record['cf_1_id'];
-      else if ($record['cf_1_value'])
-        $row_identifier .= ',cf_1:'.$record['cf_1_value'];
+    // Add custom field parts.
+    global $custom_fields;
+    if (isset($custom_fields) && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        if ($timeField['type'] == CustomFields::TYPE_TEXT)
+           $field_value = base64_encode($record[$field_name]);
+        else if ($timeField['type'] == CustomFields::TYPE_DROPDOWN)
+           $field_value =  $record[$field_name.'_option_id'];
+        $row_identifier .= ",$field_name:$field_value";
+      }
     }
-
     return $row_identifier;
   }
 
@@ -414,8 +427,9 @@ class ttWeekViewHelper {
   static function makeRowLabel($record) {
     global $user;
     // Start with client.
+    $label = '';
     if ($user->isPluginEnabled('cl'))
-      $label = $record['client'];
+      $label .= $record['client'];
 
     // Add project.
     if (!empty($label) && !empty($record['project'])) $label .= ' - ';
@@ -425,19 +439,24 @@ class ttWeekViewHelper {
     if (!empty($label) && !empty($record['task'])) $label .= ' - ';
     $label .= $record['task'];
 
-    // Add custom field 1.
-    if ($user->isPluginEnabled('cf')) {
-      if (!empty($label) && !empty($record['cf_1_value'])) $label .= ' - ';
-      $label .= $record['cf_1_value'];
+    // Add custom field parts.
+    global $custom_fields;
+    if (isset($custom_fields) && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        $field_value = $record[$field_name];
+        if (!empty($label) && !empty($field_value)) $label .= ' - ';
+        $label .= $field_value;
+      }
     }
 
     return $label;
   }
 
   // parseFromWeekViewRow - obtains field value encoded in row identifier.
-  // For example, for a row id like "cl:546,bl:0,pr:23456,ts:27464,cf_1:example text"
+  // For example, for a row id like "cl:546,bl:0,pr:23456,ts:27464,time_field_856:example text,time_field_857:2345"
   // requesting a client "cl" should return 546.
-  static function parseFromWeekViewRow($row_id, $field_label) {
+  static function parseFromWeekViewRow($row_id, $field_label, $base64decode = false) {
     // Find beginning of label.
     $pos = strpos($row_id, $field_label);
     if ($pos === false) return null; // Not found.
@@ -445,31 +464,32 @@ class ttWeekViewHelper {
     // Strip suffix from row id.
     $suffixPos = strrpos($row_id, '_');
     if ($suffixPos)
-      $remaninder = substr($row_id, 0, $suffixPos);
+      $remainder = substr($row_id, 0, $suffixPos);
 
     // Find beginning of value.
-    $posBegin = 1 + strpos($remaninder, ':', $pos);
+    $posBegin = 1 + strpos($remainder, ':', $pos);
     // Find end of value.
-    $posEnd = strpos($remaninder, ',', $posBegin);
-    if ($posEnd === false) $posEnd = strlen($remaninder);
-    // Return value.
-    return substr($remaninder, $posBegin, $posEnd - $posBegin);
+    $posEnd = strpos($remainder, ',', $posBegin);
+    if ($posEnd === false) $posEnd = strlen($remainder);
+
+    $result = substr($remainder, $posBegin, $posEnd - $posBegin);
+    if ($base64decode)
+        $result = base64_decode($result);
+
+    return $result;
   }
 
   // dateFromDayHeader calculates date from start date and day header in week view.
   static function dateFromDayHeader($start_date, $day_header) {
-    $objDate = new DateAndTime(DB_DATEFORMAT, $start_date);
-    $currentDayHeader = (string) $objDate->getDate(); // It returns an int on first call.
-    if (strlen($currentDayHeader) == 1)               // Which is an implementation detail of DateAndTime class.
-      $currentDayHeader = '0'.$currentDayHeader;      // Add a 0 for single digit day.
-    $i = 1;
-    while ($currentDayHeader != $day_header && $i < 7) {
-      // Iterate through remaining days to find a match.
-      $objDate->incDay();
-      $currentDayHeader = $objDate->getDate(); // After incDay it returns a string with leading 0, when necessary.
-      $i++;
+    $objDate = new ttDate($start_date);
+    $currentDayHeader = $objDate->getDay();
+    for ($i = 0; $i < 7; $i++) {
+      if ($currentDayHeader == $day_header)
+        break;
+      $objDate->incrementDay();
+      $currentDayHeader = $objDate->getDay();
     }
-    return $objDate->toString(DB_DATEFORMAT);
+    return $objDate->toString();
   }
 
   // insertDurationFromWeekView - inserts a new record in log tables from a week view post.
@@ -479,12 +499,14 @@ class ttWeekViewHelper {
 
     // Determine date for a new entry.
     $entry_date = ttWeekViewHelper::dateFromDayHeader($fields['start_date'], $fields['day_header']);
-    $objEntryDate = new DateAndTime(DB_DATEFORMAT, $entry_date);
+    $objEntryDate = new ttDate($entry_date);
 
     // Prohibit creating entries in future.
-    if (!$user->future_entries && $fields['browser_today']) {
-      $objBrowserToday = new DateAndTime(DB_DATEFORMAT, $fields['browser_today']);
-      if ($objEntryDate->after($objBrowserToday)) {
+    if (!$user->isOptionEnabled('future_entries') && $fields['browser_today']) {
+      $objBrowserToday = new ttDate($fields['browser_today']);
+      $server_tomorrow = new ttDate();
+      $server_tomorrow->incrementDay();
+      if ($objEntryDate->after($objBrowserToday) || $objEntryDate->after($server_tomorrow)) {
         $err->add($i18n->get('error.future_date'));
         return false;
       }
@@ -492,29 +514,30 @@ class ttWeekViewHelper {
 
     // Prepare an array of fields for regular insert function.
     $fields4insert = array();
-    $fields4insert['user_id'] = $user->getUser();
-    $fields4insert['group_id'] = $user->getGroup();
-    $fields4insert['org_id'] = $user->org_id;
     $fields4insert['date'] = $entry_date;
     $fields4insert['duration'] = $fields['duration'];
     $fields4insert['client'] = ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'cl');
     $fields4insert['billable'] = ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'bl');
     $fields4insert['project'] = ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'pr');
     $fields4insert['task'] = ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'ts');
-    $fields4insert['note'] = $fields['note'];
+    $fields4insert['note'] = isset($fields['note']) ? $fields['note'] : null;
 
     // Try to insert a record.
     $id = ttTimeHelper::insert($fields4insert);
     if (!$id) return false; // Something failed.
 
-    // Insert custom field if we have it.
+    // Insert time custom fields if we have them.
     $result = true;
-    $cf_1 = ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'cf_1');
-    if ($custom_fields && $cf_1) {
-      if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT)
-        $result = $custom_fields->insert($id, $custom_fields->fields[0]['id'], null, $cf_1);
-      elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN)
-        $result = $custom_fields->insert($id, $custom_fields->fields[0]['id'], $cf_1, null);
+    if ($id && $custom_fields && $custom_fields->timeFields) {
+      if ($fields['row_id']) {
+        foreach ($custom_fields->timeFields as $timeField) {
+          $base64decode = $timeField['type'] == CustomFields::TYPE_TEXT; // Decode all text fields back to clear text.
+          $timeCustomFields[$timeField['id']] = array('field_id' => $timeField['id'],
+            'type' => $timeField['type'],
+            'value' => ttWeekViewHelper::parseFromWeekViewRow($fields['row_id'], 'time_field_'.$timeField['id'], $base64decode));
+        }
+      }
+      $result = $custom_fields->insertTimeFields($id, $timeCustomFields); // TODO: fix this.
     }
 
     return $result;
@@ -562,8 +585,14 @@ class ttWeekViewHelper {
     }
 
     // We do have start time.
-    // Quick test if new duration is less then already existing.
     $newMinutes = ttTimeHelper::toMinutes($new_duration);
+    if ($newMinutes < 0) {
+      // Negative durations are not supported when start time is defined.
+      $err->add($i18n->get('error.field'), $i18n->get('label.duration'));
+      return false;
+    }
+
+    // Quick test if new duration is less than already existing.
     $oldMinutes = ttTimeHelper::toMinutes($oldDuration);
     if ($newMinutes < $oldMinutes)
       return true; // Safe to modify.

@@ -1,41 +1,45 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
 <script>
   function chLocation(newLocation) { document.location = newLocation; }
 </script>
+
 {$forms.subgroupsForm.open}
-<table cellspacing="1" cellpadding="3" border="0" width="720">
-{if $group_dropdown}
+{if isset($group_dropdown) && $group_dropdown}
+<table class="centered-table">
+  <tr class = "small-screen-label"><td><label for="group">{$i18n.label.group}:</label></td></tr>
   <tr>
-    <td align="right">{$i18n.label.group}:</td>
-    <td>{$forms.subgroupsForm.group.control}</td>
+    <td class="large-screen-label"><label for="group">{$i18n.label.group}:</label></td>
+    <td class="td-with-input">{$forms.subgroupsForm.group.control}</td>
   </tr>
-  <tr><td colspan="2">&nbsp;</td></tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+</table>
 {/if}
-  <tr>
-    <td width="35%" class="tableHeader">{$i18n.label.thing_name}</td>
-    <td width="35%" class="tableHeader">{$i18n.label.description}</td>
-    <td class="tableHeader">{$i18n.label.edit}</td>
-    <td class="tableHeader">{$i18n.label.delete}</td>
-  </tr>
+
+<div class="form-control-separator"></div>
+
 {if $subgroups}
+<table class="x-scrollable-table">
+  <tr>
+    <th>{$i18n.label.thing_name}</th>
+    <th>{{$i18n.label.description}}</th>
+    <th></th>
+    <th></th>
+  </tr>
   {foreach $subgroups as $subgroup}
-  <tr bgcolor="{cycle values="#f5f5f5,#ffffff"}">
-    <td>{$subgroup.name|escape}</td>
-    <td>{$subgroup.description|escape}</td>
-    <td><a href="group_edit.php?id={$subgroup.id}">{$i18n.label.edit}</a></td>
-    <td><a href="group_delete.php?id={$subgroup.id}">{$i18n.label.delete}</a></td>
+  <tr>
+    <td class="text-cell">{$subgroup.name|escape}</td>
+    <td class="text-cell">{$subgroup.description|escape}</td>
+    <td><a href="group_edit.php?id={$subgroup.id}"><img class="table_icon" alt="{$i18n.label.edit}" src="img/icon-edit.png"></a></td>
+    <td><a href="group_delete.php?id={$subgroup.id}"><img class="table_icon" alt="{$i18n.label.delete}" src="img/icon-delete.png"></a></td>
   </tr>
   {/foreach}
+</table>
 {/if}
-</table>
 {$forms.subgroupsForm.close}
-
-<table width="100%">
-  <tr>
-    <td align="center">
-      <br>
-      <form>
-        <input type="button" onclick="chLocation('group_add.php');" value="{$i18n.button.add}">
-      </form>
-    </td>
-  </tr>
-</table>
+<div class="button-set">
+  <form>
+    <input type="button" onclick="chLocation('group_add.php');" value="{$i18n.button.add}">
+  </form>
+</div>

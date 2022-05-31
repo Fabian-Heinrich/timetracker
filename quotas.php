@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 require_once('plugins/MonthlyQuota.class.php');
@@ -74,12 +50,14 @@ $quota = new MonthlyQuota();
 
 if ($request->isPost()){
   // Validate user input.
-  if (false === ttTimeHelper::postedDurationToMinutes($request->getParameter('workdayHours')))
+  $workdayMinutes = ttTimeHelper::postedDurationToMinutes($request->getParameter('workdayHours'));
+  if (false === $workdayMinutes || $workdayMinutes <= 0 )
     $err->add($i18n->get('error.field'), $i18n->get('form.quota.workday_hours'));
 
   for ($i = 0; $i < count($months); $i++){
     $val = $request->getParameter($months[$i]);
-    if (false === ttTimeHelper::postedDurationToMinutes($val, 44640/*24*60*31*/))
+    $monthMinutes = ttTimeHelper::postedDurationToMinutes($val, 44640/*24*60*31*/);
+    if (false === $monthMinutes || $monthMinutes < 0)
       $err->add($i18n->get('error.field'), $months[$i]);
   }
   // Finished validating user input.
@@ -114,8 +92,8 @@ $monthsData = $quota->get($selectedYear);
 $workdayHours = ttTimeHelper::toAbsDuration($user->getWorkdayMinutes(), true);
 
 $form = new Form('monthlyQuotasForm');
-$form->addInput(array('type'=>'text', 'name'=>'workdayHours', 'value'=>$workdayHours, 'style'=>'width:60px'));
-$form->addInput(array('type'=>'combobox','name'=>'year','data'=>$years,'datakeys'=>array('id','name'),'value'=>$selectedYear,'onchange'=>'yearChange(this.value);'));
+$form->addInput(array('type'=>'text','class'=>'quota-field','name'=>'workdayHours','value'=>$workdayHours));
+$form->addInput(array('type'=>'combobox','class'=>'dropdown-field-short','name'=>'year','data'=>$years,'datakeys'=>array('id','name'),'value'=>$selectedYear,'onchange'=>'yearChange(this.value);'));
 for ($i=0; $i < count($months); $i++) { 
   $value = "";
   if (array_key_exists($i+1, $monthsData)){
@@ -123,7 +101,7 @@ for ($i=0; $i < count($months); $i++) {
     $value = ttTimeHelper::toAbsDuration($value, true);
   }
   $name = $months[$i];
-  $form->addInput(array('type'=>'text','name'=>$name,'maxlength'=>6,'value'=> $value,'style'=>'width:70px'));
+  $form->addInput(array('type'=>'text','class'=>'quota-field','name'=>$name,'maxlength'=>6,'value'=> $value));
 }
 
 $smarty->assign('months', $months);

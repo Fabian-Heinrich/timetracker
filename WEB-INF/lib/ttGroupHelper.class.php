@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttRoleHelper');
 
@@ -34,9 +10,10 @@ class ttGroupHelper {
 
   // The getGroupName function returns group name.
   static function getGroupName($group_id) {
+    global $user;
     $mdb2 = getConnection();
 
-    $sql = "select name from tt_groups where id = $group_id and (status = 1 or status = 0)";
+    $sql = "select name from tt_groups where id = $group_id and org_id = $user->org_id and (status = 1 or status = 0)";
     $res = $mdb2->query($sql);
 
     if (!is_a($res, 'PEAR_Error')) {
@@ -50,9 +27,13 @@ class ttGroupHelper {
   static function getParentGroup($group_id) {
     global $user;
 
+    // Checking parameters for sanity is normally done in access check blocks on pages.
+    // This cast below is just in case we forgot to check $group_id to be an integer.
+    $groupId = (int) $group_id; // Protection against sql injection.
+
     $mdb2 = getConnection();
 
-    $sql = "select parent_id from tt_groups where id = $group_id and org_id = $user->org_id and status = 1";
+    $sql = "select parent_id from tt_groups where id = $groupId and org_id = $user->org_id and status = 1";
     $res = $mdb2->query($sql);
 
     if (!is_a($res, 'PEAR_Error')) {
@@ -88,18 +69,20 @@ class ttGroupHelper {
     $mdb2 = getConnection();
     $parent_id = $user->getGroup();
     $org_id = $user->org_id;
+    $group_key = ttRandomString();
     $name = $fields['name'];
     $description = $fields['description'];
 
     // We need to inherit attributes from the parent group.
     $attrs = ttGroupHelper::getGroupAttrs($parent_id);
 
-    $columns = '(parent_id, org_id, name, description, currency, decimal_mark, lang, date_format, time_format'.
-      ', week_start, tracking_mode, project_required, task_required, record_type, bcc_email'.
-      ', allow_ip, password_complexity, plugins, lock_spec'.
-      ', workday_minutes, config, created, created_ip, created_by)';
+    $columns = '(parent_id, org_id, group_key, name, description, currency, decimal_mark, lang, date_format,'.
+      ' time_format, week_start, tracking_mode, project_required, record_type, bcc_email,'.
+      ' allow_ip, password_complexity, plugins, lock_spec,'.
+      ' workday_minutes, config, created, created_ip, created_by)';
 
     $values = " values ($parent_id, $org_id";
+    $values .= ', '.$mdb2->quote($group_key);
     $values .= ', '.$mdb2->quote($name);
     $values .= ', '.$mdb2->quote($description);
     $values .= ', '.$mdb2->quote($attrs['currency']);
@@ -110,7 +93,6 @@ class ttGroupHelper {
     $values .= ', '.(int)$attrs['week_start'];
     $values .= ', '.(int)$attrs['tracking_mode'];
     $values .= ', '.(int)$attrs['project_required'];
-    $values .= ', '.(int)$attrs['task_required'];
     $values .= ', '.(int)$attrs['record_type'];
     $values .= ', '.$mdb2->quote($attrs['bcc_email']);
     $values .= ', '.$mdb2->quote($attrs['allow_ip']);
@@ -154,7 +136,7 @@ class ttGroupHelper {
     // Keep the logic simple by returning false on first error.
 
     // Obtain subgroups and call self recursively on them.
-    $subgroups = $user->getSubgroups($group_id);
+    $subgroups = (array) $user->getSubgroups($group_id);
     foreach($subgroups as $subgroup) {
       if (!ttGroupHelper::markGroupDeleted($subgroup['id']))
         return false;
@@ -162,13 +144,17 @@ class ttGroupHelper {
 
     // Now do actual work with all entities.
 
+    // Delete group files.
+    ttGroupHelper::deleteGroupFiles($group_id);
+
     // Some things cannot be marked deleted as we don't have the status field for them.
     // Just delete such things (until we have a better way to deal with them).
     $tables_to_delete_from = array(
       'tt_config',
       'tt_predefined_expenses',
       'tt_client_project_binds',
-      'tt_project_task_binds'
+      'tt_project_task_binds',
+      'tt_project_template_binds'
     );
     foreach($tables_to_delete_from as $table) {
       if (!ttGroupHelper::deleteGroupEntriesFromTable($group_id, $table))
@@ -181,7 +167,7 @@ class ttGroupHelper {
     //
     // 1) Users may mark some of them deleted during their work.
     // If we mark all of them deleted here, we can't recover nicely
-    // as we'll lose track of what was accidentally deleted by user.
+    // as we'll lose track of what was deleted by users.
     //
     // 2) DB maintenance script (Clean up DB from inactive groups) should
     // get rid of these items permanently eventually.
@@ -222,6 +208,7 @@ class ttGroupHelper {
     $mdb2 = getConnection();
 
     // Add modified info to sql for some tables, depending on table name.
+    $modified_part = '';
     if ($table_name == 'tt_users') {
       $modified_part = ', modified = now(), modified_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', modified_by = '.$user->id;
     }
@@ -322,7 +309,7 @@ class ttGroupHelper {
   }
 
   // getActiveProjects - returns an array of active projects for a group.
-  static function getActiveProjects()
+  static function getActiveProjects($includeFiles = false)
   {
     global $user;
     $mdb2 = getConnection();
@@ -330,8 +317,17 @@ class ttGroupHelper {
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
-    $sql = "select id, name, description, tasks from tt_projects".
-      " where group_id = $group_id and org_id = $org_id and status = 1 order by upper(name)";
+    $filePart = '';
+    $fileJoin = '';
+    if ($includeFiles) {
+      $filePart = ', if(Sub1.entity_id is null, 0, 1) as has_files';
+      $fileJoin =  " left join (select distinct entity_id from tt_files".
+      " where entity_type = 'project' and group_id = $group_id and org_id = $org_id and status = 1) Sub1".
+      " on (p.id = Sub1.entity_id)";
+    }
+
+    $sql = "select p.id, p.name, p.description, p.tasks $filePart from tt_projects p $fileJoin".
+      " where p.group_id = $group_id and p.org_id = $org_id and p.status = 1 order by upper(p.name)";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -343,7 +339,7 @@ class ttGroupHelper {
   }
 
   // getInactiveProjects - returns an array of inactive projects for a group.
-  static function getInactiveProjects()
+  static function getInactiveProjects($includeFiles = false)
   {
     global $user;
     $mdb2 = getConnection();
@@ -351,8 +347,17 @@ class ttGroupHelper {
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
-    $sql = "select id, name, description, tasks from tt_projects".
-      "  where group_id = $group_id and org_id = $org_id and status = 0 order by upper(name)";
+    $filePart = '';
+    $fileJoin = '';
+    if ($includeFiles) {
+      $filePart = ', if(Sub1.entity_id is null, 0, 1) as has_files';
+      $fileJoin =  " left join (select distinct entity_id from tt_files".
+      " where entity_type = 'project' and group_id = $group_id and org_id = $org_id and status = 1) Sub1".
+      " on (p.id = Sub1.entity_id)";
+    }
+
+    $sql = "select p.id, p.name, p.description, p.tasks $filePart from tt_projects p $fileJoin".
+      "  where p.group_id = $group_id and p.org_id = $org_id and p.status = 0 order by upper(p.name)";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -391,7 +396,7 @@ class ttGroupHelper {
   }
 
   // The getActiveInvoices returns an array of active invoices for a group.
-  static function getActiveInvoices()
+  static function getActiveInvoices($sort_options = false)
   {
     global $user;
     $mdb2 = getConnection();
@@ -402,19 +407,33 @@ class ttGroupHelper {
     $addPaidStatus = $user->isPluginEnabled('ps');
     $result = array();
 
+    $client_part = '';
     if ($user->isClient())
       $client_part = "and i.client_id = $user->client_id";
 
-    $sql = "select i.id, i.name, i.date, i.client_id, i.status, c.name as client_name from tt_invoices i".
+    // Prepare order by part.
+    $order_by_part = 'order  by ';
+    if (!$sort_options)
+      $order_by_part .= 'name';
+    else {
+      $order_by_part .= $sort_options['sort_option_1'];
+      if ($sort_options['sort_order_1'] == 'descending') $order_by_part .= ' desc';
+
+      if ($sort_options['sort_option_2']) {
+        $order_by_part .= ', '.$sort_options['sort_option_2'];
+        if ($sort_options['sort_order_2'] == 'descending') $order_by_part .= ' desc';
+      }
+    }
+
+    $sql = "select i.id, i.name, i.date, i.client_id, i.status, c.name as client from tt_invoices i".
       " left join tt_clients c on (c.id = i.client_id)".
-      " where i.status = 1 and i.group_id = $group_id and i.org_id = $org_id $client_part order by i.name";
+      " where i.status = 1 and i.group_id = $group_id and i.org_id = $org_id $client_part $order_by_part";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
-      $dt = new DateAndTime(DB_DATEFORMAT);
       while ($val = $res->fetchRow()) {
         // Localize date.
-        $dt->parseVal($val['date']);
+        $dt = new ttDate($val['date']);
         $val['date'] = $dt->toString($user->getDateFormat());
         if ($addPaidStatus)
           $val['paid'] = ttInvoiceHelper::isPaid($val['id']);
@@ -468,7 +487,7 @@ class ttGroupHelper {
       return false;
     while ($val = $res->fetchRow()) {
       // Localize top manager role name, as it is not localized in db.
-      if ($val['rank'] == 512)
+      if (isset($val['rank']) && $val['rank'] == 512)
         $val['role_name'] = $i18n->get('role.top_manager.label');
       $user_list[] = $val;
     }
@@ -507,6 +526,48 @@ class ttGroupHelper {
     $org_id = $user->org_id;
 
     $sql = "select id, name, description from tt_tasks".
+      " where group_id = $group_id and org_id = $org_id and status = 0 order by upper(name)";
+    $res = $mdb2->query($sql);
+    $result = array();
+    if (!is_a($res, 'PEAR_Error')) {
+      while ($val = $res->fetchRow()) {
+        $result[] = $val;
+      }
+    }
+    return $result;
+  }
+
+  // getActiveTemplates - returns an array of active templates for a group.
+  static function getActiveTemplates()
+  {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $sql = "select id, name, description, content from tt_templates".
+      " where group_id = $group_id and org_id = $org_id and status = 1 order by upper(name)";
+    $res = $mdb2->query($sql);
+    $result = array();
+    if (!is_a($res, 'PEAR_Error')) {
+      while ($val = $res->fetchRow()) {
+        $result[] = $val;
+      }
+    }
+    return $result;
+  }
+
+  // getInactiveTemplates - returns an array of active templates for a group.
+  static function getInactiveTemplates()
+  {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $sql = "select id, name, description from tt_templates".
       " where group_id = $group_id and org_id = $org_id and status = 0 order by upper(name)";
     $res = $mdb2->query($sql);
     $result = array();
@@ -576,19 +637,22 @@ class ttGroupHelper {
   }
 
   // The getUsersForClient obtains all active and inactive users in a group that are relevant to a client.
-  static function getUsersForClient() {
+  static function getUsersForClient($options) {
     global $user;
     $mdb2 = getConnection();
 
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
+    if (isset($options['status']))
+      $where_part = 'where u.status = '.(int)$options['status'];
+    else
+      $where_part = 'where u.status is not null';
+
     $sql = "select u.id, u.name from tt_user_project_binds upb".
       " inner join tt_client_project_binds cpb on (upb.project_id = cpb.project_id and cpb.client_id = $user->client_id)".
       " inner join tt_users u on (u.id = upb.user_id and u.group_id = $group_id and u.org_id = $org_id)".
-      " where (u.status = 1 or u.status = 0)".
-      " group by u.id".
-      " order by upper(u.name)";
+      " $where_part group by u.id order by upper(u.name)";
     $res = $mdb2->query($sql);
     $user_list = array();
     if (is_a($res, 'PEAR_Error'))
@@ -614,11 +678,102 @@ class ttGroupHelper {
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
-      $dt = new DateAndTime(DB_DATEFORMAT);
       while ($val = $res->fetchRow()) {
         $result[] = $val;
       }
     }
     return $result;
+  }
+
+  // deleteGroupFiles deletes files attached to all entities in the entire group.
+  // Note that it is a permanent delete, not "mark deleted" by design.
+  static function deleteGroupFiles($group_id) {
+
+    global $user;
+    $org_id = $user->org_id;
+
+    // Delete all group files from the database.
+    $mdb2 = getConnection();
+    $sql = "delete from tt_files where org_id = $org_id and group_id = $group_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    if ($affected == 0) return true; // Do not call file storage utility.
+
+    // Try to make a call to file storage server.
+    $storage_uri = defined('FILE_STORAGE_URI') ? FILE_STORAGE_URI : "https://www.anuko.com/files/";
+    $deletegroupfiles_uri = $storage_uri.'deletegroupfiles';
+
+    // Obtain site id.
+    $sql = "select param_value as site_id from tt_site_config where param_name = 'locker_id'";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $site_id = $val['site_id'];
+    if (!$site_id) return true; // Nothing to do.
+
+    // Obtain site key.
+    $sql = "select param_value as site_key from tt_site_config where param_name = 'locker_key'";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $site_key = $val['site_key'];
+    if (!$site_key) return true; // Can't continue without site key.
+
+    // Obtain org key.
+    $sql = "select group_key as org_key from tt_groups where id = $org_id";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $org_key = $val['org_key'];
+    if (!$org_key) return true; // Can't continue without org key.
+
+    // Obtain group key.
+    $sql = "select group_key as group_key from tt_groups where id = $group_id";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $group_key = $val['group_key'];
+    if (!$group_key) return true; // Can't continue without group key.
+
+    $curl_fields = array('site_id' => $site_id,
+      'site_key' => $site_key,
+      'org_id' => $org_id,
+      'org_key' => $org_key,
+      'group_id' => $group_id,
+      'group_key' => $group_key);
+
+    // url-ify the data for the POST.
+    foreach($curl_fields as $key=>$value) { $fields_string .= $key.'='.$value.'&'; }
+    $fields_string = rtrim($fields_string, '&');
+
+    // Open connection.
+    $ch = curl_init();
+
+    // Set the url, number of POST vars, POST data.
+    curl_setopt($ch, CURLOPT_URL, $deletegroupfiles_uri);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    // Execute a post request.
+    $result = curl_exec($ch);
+
+    // Close connection.
+    curl_close($ch);
+
+    // Many things can go wrong with a remote call to file storage facility.
+    // By design, we ignore such errors.
+    return true;
+  }
+
+  // updateEntitiesModified updates the entities_modified field in tt_groups table
+  // with a current timestamp.
+  static function updateEntitiesModified() {
+    global $user;
+    $org_id = $user->org_id;
+    $group_id = $user->getGroup();
+    $mdb2 = getConnection();
+
+    $sql = "update tt_groups set entities_modified = now() where id = $group_id and org_id = $org_id";
+    $affected = $mdb2->exec($sql);
+    return (!is_a($affected, 'PEAR_Error'));
   }
 }

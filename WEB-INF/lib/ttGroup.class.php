@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttConfigHelper');
 import('ttGroupHelper');
@@ -33,7 +9,8 @@ import('ttGroupHelper');
 // We use it in ttUser class to have acces to "on behalf" group properties.
 class ttGroup {
   var $id = null;               // Group id.
-  var $parent_id = null;        // Paerent group id.
+  var $group_key = null;        // Group key.
+  var $parent_id = null;        // Parent group id.
   var $org_id = null;           // Organization id.
   var $name = null;             // Group name.
   var $lang = null;             // Language.
@@ -41,22 +18,24 @@ class ttGroup {
   var $date_format = null;      // Date format.
   var $time_format = null;      // Time format.
   var $week_start = 0;          // Week start day.
-  var $show_holidays = 0;       // Whether to show holidays in calendar.
   var $tracking_mode = 0;       // Tracking mode.
   var $project_required = 0;    // Whether project selection is required on time entires.
-  var $task_required = 0;       // Whether task selection is required on time entires.
   var $record_type = 0;         // Record type (duration vs start and finish, or both).
   var $punch_mode = 0;          // Whether punch mode is enabled for user.
   var $allow_overlap = 0;       // Whether to allow overlapping time entries.
-  var $future_entries = 0;      // Whether to allow creating future entries.
   var $bcc_email = null;        // Bcc email.
   var $allow_ip = null;         // Specification from where user is allowed access.
   var $password_complexity = null; // Password complexity example.
   var $currency = null;         // Currency.
   var $plugins = null;          // Comma-separated list of enabled plugins.
+
   var $config = null;           // Comma-separated list of miscellaneous config options.
+  var $configHelper = null;     // An instance of ttConfigHelper class.
+  var $custom_css = null;       // Custom css.
+
   var $custom_logo = 0;         // Whether to use a custom logo for group.
   var $lock_spec = null;        // Cron specification for record locking.
+  var $holidays = null;         // Holidays specification.
   var $workday_minutes = 480;   // Number of work minutes in a regular day.
 
   var $active_users = 0;        // Count of active users in group.
@@ -77,6 +56,7 @@ class ttGroup {
     $val = $res->fetchRow();
     if ($val['id'] > 0) {
       $this->id = $val['id'];
+      $this->group_key = $val['group_key'];
       $this->parent_id = $val['parent_id'];
       $this->org_id = $val['org_id'];
       $this->name = $val['name'];
@@ -88,8 +68,7 @@ class ttGroup {
       $this->tracking_mode = $val['tracking_mode'];
       /* TODO: initialize other things here.
       $this->project_required = $val['project_required'];
-      $this->task_required = $val['task_required'];
-       */
+      */
       $this->record_type = $val['record_type'];
       /*
       $this->bcc_email = $val['bcc_email'];
@@ -100,17 +79,19 @@ class ttGroup {
       $this->currency = $val['currency'];
       $this->plugins = $val['plugins'];
       $this->lock_spec = $val['lock_spec'];
+      $this->holidays = $val['holidays'];
       $this->workday_minutes = $val['workday_minutes'];
       /*
       $this->custom_logo = $val['custom_logo'];
       */
+
+      // TODO: refactor this.
       $this->config = $val['config'];
-      $config = new ttConfigHelper($this->config);
+      $this->configHelper = new ttConfigHelper($val['config']);
+      $this->custom_css = $val['custom_css'];
       // Set user config options.
-      $this->show_holidays = $config->getDefinedValue('show_holidays');
-      $this->punch_mode = $config->getDefinedValue('punch_mode');
-      $this->allow_overlap = $config->getDefinedValue('allow_overlap');
-      $this->future_entries = $config->getDefinedValue('future_entries');
+      $this->punch_mode = $this->configHelper->getDefinedValue('punch_mode');
+      $this->allow_overlap = $this->configHelper->getDefinedValue('allow_overlap');
     }
 
     // Determine active user count in a separate query.

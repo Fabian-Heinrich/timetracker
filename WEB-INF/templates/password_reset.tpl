@@ -1,27 +1,16 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
 {$forms.resetPasswordForm.open}
-<table cellspacing="4" cellpadding="7" border="0">
+<table class="centered-table">
+  <tr class = "small-screen-label"><td><label for="login">{$i18n.label.login}:</label></td></tr>
   <tr>
-    <td>
-{if $result_message}
-      <table cellspacing="4" cellpadding="7" border="0" width="100%">
-        <tr><td align="center"><font color="red"><b>{$result_message}</b></font></td></tr>
-      </table>
-{else}
-      <table>
-        <tr>
-          <td align="right">{$i18n.label.login}:</td>
-          <td colspan="3">{$forms.resetPasswordForm.login.control}</td>
-        </tr>
-        <tr>
-          <td colspan="4">&nbsp;</td>
-        </tr>
-        <tr>
-          <td>&nbsp;</td>
-          <td colspan="3" align="center">{$forms.resetPasswordForm.btn_submit.control}</td>
-        </tr>
-      </table>
-{/if}
-    </td>
+    <td class="large-screen-label"><label for="login">{$i18n.label.login}:</label></td>
+    <td class="td-with-input">{$forms.resetPasswordForm.login.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr>
+    <td colspan="2">{$forms.resetPasswordForm.btn_submit.control}</td>
   </tr>
 </table>
 {$forms.resetPasswordForm.close}

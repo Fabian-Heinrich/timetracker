@@ -1,15 +1,15 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
+<div class="page-hint">{$i18n.form.swap.hint}</div>
 {$forms.swapForm.open}
-<table cellspacing="4" cellpadding="7" border="0">
-  <table cellspacing="1" cellpadding="2" border="0">
-    <tr><td colspan="2">{$i18n.form.swap.hint}</td></tr
-    <tr><td>&nbsp;</td></tr>
-    <tr>
-      <td align="right">{$i18n.form.swap.swap_with}:</td>
-      <td>{$forms.swapForm.swap_with.control}</td>
-    </tr>
-    <tr>
-      <td colspan="2" align="center">{$forms.swapForm.btn_submit.control} {$forms.swapForm.btn_cancel.control}</td>
-    </tr>
-  </table>
+<table class="centered-table">
+  <tr class = "small-screen-label"><td><label for="swap_with">{$i18n.form.swap.swap_with}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="swap_with">{$i18n.form.swap.swap_with}:</label></td>
+    <td class="td-with-input">{$forms.swapForm.swap_with.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
 </table>
+<div class="button-set">{$forms.swapForm.btn_submit.control} {$forms.swapForm.btn_cancel.control}</div>
 {$forms.swapForm.close}

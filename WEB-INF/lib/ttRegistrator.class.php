@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttUserHelper');
 import('ttRoleHelper');
@@ -38,10 +14,6 @@ class ttRegistrator {
   var $group_name = null; // Group name.
   var $currency = null;   // Currency.
   var $lang = null;       // Language.
-  var $created_by_id = null; // User, who uses the instance.
-                             // Currently, there are 2 possibilities:
-                             // 1) Self-registration, or null here.
-                             // 2) Registration by admin with a user_id.
   var $group_id = null;   // Group id, set after we create a group.
   var $org_id = null;     // Organization id, the same as group_id (top group in org).
   var $role_id = null;    // Role id for top managers.
@@ -60,7 +32,6 @@ class ttRegistrator {
     $this->currency = $fields['currency'];
     $this->lang = $fields['lang'];
     if (!$this->lang) $this->lang = 'en';
-    $this->created_by_id = (int) $fields['created_by_id'];
     $this->err = $err;
 
     // Validate passed in parameters.
@@ -84,7 +55,7 @@ class ttRegistrator {
       $this->err->add($i18n->get('error.field'), $i18n->get('label.confirm_password'));
     if ($this->password1 !== $this->password2)
       $this->err->add($i18n->get('error.not_equal'), $i18n->get('label.password'), $i18n->get('label.confirm_password'));
-    if (!ttValidEmail($this->email, true))
+    if (!ttValidEmail($this->email, !isTrue('EMAIL_REQUIRED')))
       $this->err->add($i18n->get('error.field'), $i18n->get('label.email'));
     if (!ttUserHelper::canAdd())
       $this->err->add($i18n->get('error.user_count'));
@@ -98,11 +69,10 @@ class ttRegistrator {
     global $user;
 
     // Protection from too many recent bot registrations from user IP.
-    if (!$this->created_by_id) { // No problems for logged in user (site admin).
-      if ($this->registeredRecently()) {
-        $this->err->add($i18n->get('error.access_denied'));
-        return false;
-      }
+    if ($this->registeredRecently()) {
+      $this->err->add($i18n->get('error.registered_recently'));
+      $this->err->add($i18n->get('error.access_denied'));
+      return false;
     }
 
     import('ttUserHelper');
@@ -133,8 +103,7 @@ class ttRegistrator {
     }
 
     // Set created_by appropriately.
-    $created_by = $this->created_by_id ? $this->created_by_id : $this->user_id;
-    if (!$this->setCreatedBy($created_by))
+    if (!$this->setCreatedBy($this->user_id))
       return false;
 
     return true;
@@ -145,13 +114,16 @@ class ttRegistrator {
   function createGroup() {
     $mdb2 = getConnection();
 
+    $group_key = $mdb2->quote(ttRandomString());
     $name = $mdb2->quote($this->group_name);
     $currency = $mdb2->quote($this->currency);
     $lang = $mdb2->quote($this->lang);
+    $plugins = $mdb2->quote(defined('DEFAULT_PLUGINS') ? DEFAULT_PLUGINS : null);
     $created = 'now()';
     $created_ip = $mdb2->quote($_SERVER['REMOTE_ADDR']);
 
-    $sql = "insert into tt_groups (name, currency, lang, created, created_ip) values($name, $currency, $lang, $created, $created_ip)";
+    $sql = "insert into tt_groups (group_key, name, currency, lang, plugins, created, created_ip)".
+      " values($group_key, $name, $currency, $lang, $plugins, $created, $created_ip)";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error')) return false;
 
@@ -212,13 +184,28 @@ class ttRegistrator {
     return true;
   }
 
-  // registeredRecently determines if we already have a successful recent registration from user IP.
-  // "recent" means "within the last minute" and is set in a query by the following condition:
-  // "and created > now() - interval 1 minute". Change if necessary.
+  // registeredRecently determines if we already have successful recent registration(s) from user IP.
+  // "recent" means the following:
+  // - 2 or more registrations during last 15 minutes, or
+  // - 1 registration during last minute.
+  //
+  // This offers some level of protection from bot registrations.
   function registeredRecently() {
     $mdb2 = getConnection();
 
     $ip_part = ' created_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']);
+    $sql = 'select count(*) as cnt from tt_groups where '.$ip_part.' and created > now() - interval 15 minute';
+    $res = $mdb2->query($sql);
+    if (is_a($res, 'PEAR_Error'))
+      return false;
+    $val = $res->fetchRow();
+    if ($val['cnt'] == 0)
+      return false; // No registrations in last 15 minutes.
+    if ($val['cnt'] >= 2)
+      return true;  // 2 or more registrations in last 15 mintes.
+
+    // If we are here, there was exactly one registration during last 15 minutes.
+    // Determine if it occurred within the last minute in a separate query.
     $sql = 'select created from tt_groups where '.$ip_part.' and created > now() - interval 1 minute';
     $res = $mdb2->query($sql);
     if (is_a($res, 'PEAR_Error'))

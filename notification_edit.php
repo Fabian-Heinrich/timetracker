@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 require_once(LIBRARY_DIR.'/tdcron/class.tdcron.php');
@@ -68,6 +44,7 @@ if ($request->isPost()) {
   $cl_email = trim($request->getParameter('email'));
   $cl_cc = trim($request->getParameter('cc'));
   $cl_subject = trim($request->getParameter('subject'));
+  $cl_comment = trim($request->getParameter('comment'));
   $cl_report_condition = trim($request->getParameter('report_condition'));
 } else {
   $notification = ttNotificationHelper::get($notification_id);
@@ -76,6 +53,7 @@ if ($request->isPost()) {
   $cl_email = $notification['email'];
   $cl_cc = $notification['cc'];
   $cl_subject = $notification['subject'];
+  $cl_comment = $notification['comment'];
   $cl_report_condition = $notification['report_condition'];
 }
 
@@ -83,31 +61,31 @@ $form = new Form('notificationForm');
 $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$notification_id));
 $form->addInput(array('type'=>'combobox',
   'name'=>'fav_report',
-  'style'=>'width: 250px;',
   'value'=>$cl_fav_report_id,
   'data'=>$fav_reports,
   'datakeys'=>array('id','name'),
   'empty'=>array(''=>$i18n->get('dropdown.select'))));
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'cron_spec','style'=>'width: 250px;','value'=>$cl_cron_spec));
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'email','style'=>'width: 250px;','value'=>$cl_email));
-$form->addInput(array('type'=>'text','name'=>'cc','style'=>'width: 300px;','value'=>$cl_cc));
-$form->addInput(array('type'=>'text','name'=>'subject','style'=>'width: 300px;','value'=>$cl_subject));
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'report_condition','style'=>'width: 250px;','value'=>$cl_report_condition));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'cron_spec','value'=>$cl_cron_spec));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'email','value'=>$cl_email));
+$form->addInput(array('type'=>'text','name'=>'cc','value'=>$cl_cc));
+$form->addInput(array('type'=>'text','name'=>'subject','value'=>$cl_subject));
+$form->addInput(array('type'=>'textarea','name'=>'comment','value'=>$cl_comment));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'report_condition','value'=>$cl_report_condition));
 $form->addInput(array('type'=>'submit','name'=>'btn_submit','value'=>$i18n->get('button.save')));
 
 if ($request->isPost()) {
   // Validate user input.
   if (!$cl_fav_report_id) $err->add($i18n->get('error.report'));
   if (!ttValidCronSpec($cl_cron_spec)) $err->add($i18n->get('error.field'), $i18n->get('label.schedule'));
-  if (!ttValidEmail($cl_email)) $err->add($i18n->get('error.field'), $i18n->get('label.email'));
-  if (!ttValidEmail($cl_cc, true)) $err->add($i18n->get('error.field'), $i18n->get('label.cc'));
+  if (!ttValidEmailList($cl_email)) $err->add($i18n->get('error.field'), $i18n->get('form.email'));
+  if (!ttValidEmailList($cl_cc, true)) $err->add($i18n->get('error.field'), $i18n->get('label.cc'));
   if (!ttValidString($cl_subject, true)) $err->add($i18n->get('error.field'), $i18n->get('label.subject'));
+  if (!ttValidString($cl_comment, true)) $err->add($i18n->get('error.field'), $i18n->get('label.comment'));
   if (!ttValidCondition($cl_report_condition)) $err->add($i18n->get('error.field'), $i18n->get('label.condition'));
 
   if ($err->no()) {
     // Calculate next execution time.
-    $next = tdCron::getNextOccurrence($cl_cron_spec, mktime());
-
+    $next = tdCron::getNextOccurrence($cl_cron_spec, time());
     if (ttNotificationHelper::update(array(
         'id' => $notification_id,
         'cron_spec' => $cl_cron_spec,
@@ -116,6 +94,7 @@ if ($request->isPost()) {
         'email' => $cl_email,
         'cc' => $cl_cc,
         'subject' => $cl_subject,
+        'comment' => $cl_comment,
         'report_condition' => $cl_report_condition,
         'status' => ACTIVE))) {
         header('Location: notifications.php');

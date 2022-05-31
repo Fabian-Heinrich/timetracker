@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -53,8 +29,8 @@ if ($i18n->lang != $user->lang) {
   $smarty->assign('i18n', $i18n->keys);
 }
 if ($user->custom_logo) {
-  $smarty->assign('custom_logo', 'images/'.$user->group_id.'.png');
-  $smarty->assign('mobile_custom_logo', '../images/'.$user->group_id.'.png');
+  $smarty->assign('custom_logo', 'img/'.$user->group_id.'.png');
+  $smarty->assign('mobile_custom_logo', '../img/'.$user->group_id.'.png');
 }
 $smarty->assign('user', $user);
 
@@ -73,6 +49,9 @@ if ($request->isPost()) {
   if (!ttValidString($cl_password2)) $err->add($i18n->get('error.field'), $i18n->get('label.confirm_password'));
   if ($cl_password1 !== $cl_password2)
     $err->add($i18n->get('error.not_equal'), $i18n->get('label.password'), $i18n->get('label.confirm_password'));
+  // Check password complexity.
+  if (!ttCheckPasswordComplexity($cl_password1))
+    $err->add($i18n->get('error.weak_password'));
 
   if ($err->no()) {
     // Use the "limit" plugin if we have one. Ignore include errors.
@@ -83,7 +62,7 @@ if ($request->isPost()) {
     ttUserHelper::setPassword($user_id, $cl_password1);
 
     if ($auth->doLogin($user->login, $cl_password1)) {
-      setcookie('tt_login', $user->login, time() + COOKIE_EXPIRE, '/');
+      setcookie(LOGIN_COOKIE_NAME, $user->login, time() + COOKIE_EXPIRE, '/');
       // Redirect, depending on user role.
       if ($user->can('administer_site')) {
         header('Location: admin_groups.php');

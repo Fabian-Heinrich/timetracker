@@ -1,33 +1,9 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttClientHelper');
-import('DateAndTime');
+import('ttDate');
 
 // Class ttInvoiceHelper is used for help with invoices.
 class ttInvoiceHelper {
@@ -40,6 +16,7 @@ class ttInvoiceHelper {
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
+    $client_part = '';
     if ($user->isClient()) $client_part = "and client_id = $user->client_id";
 
     $sql = "select * from tt_invoices".
@@ -65,7 +42,7 @@ class ttInvoiceHelper {
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
       $val = $res->fetchRow();
-      if ($val['id']) {
+      if (isset($val['id']) && $val['id'] > 0) {
         return $val;
       }
     }
@@ -107,8 +84,9 @@ class ttInvoiceHelper {
   // markPaid marks invoice items as paid.
   static function markPaid($invoice_id, $mark_paid = true) {
     global $user;
-    $mdb2 = getConnection();
+    if ($user->isClient()) return false; // Not for clients.
 
+    $mdb2 = getConnection();
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
@@ -181,9 +159,8 @@ class ttInvoiceHelper {
 
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
-      $dt = new DateAndTime(DB_DATEFORMAT);
       while ($val = $res->fetchRow()) {
-        $dt->parseVal($val['date']);
+        $dt = new ttDate($val['date']);
         $val['date'] = $dt->toString($user->getDateFormat());
         $result[] = $val;
       }
@@ -199,6 +176,8 @@ class ttInvoiceHelper {
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
+    $modified_part = ', modified = now(), modified_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', modified_by = '.$user->id;
+
     // Handle custom field log records.
     if ($delete_invoice_items) {
       $sql = "update tt_custom_field_log set status = null".
@@ -210,10 +189,10 @@ class ttInvoiceHelper {
 
     // Handle time records.
     if ($delete_invoice_items) {
-      $sql = "update tt_log set status = null".
+      $sql = "update tt_log set status = null".$modified_part.
         " where invoice_id = $invoice_id and group_id = $group_id and org_id = $org_id";
     } else {
-      $sql = "update tt_log set invoice_id = null".
+      $sql = "update tt_log set invoice_id = null".$modified_part.
         " where invoice_id = $invoice_id and group_id = $group_id and org_id = $org_id";
     }
     $affected = $mdb2->exec($sql);
@@ -221,10 +200,10 @@ class ttInvoiceHelper {
 
     // Handle expense items.
     if ($delete_invoice_items) {
-      $sql = "update tt_expense_items set status = null".
+      $sql = "update tt_expense_items set status = null".$modified_part.
         " where invoice_id = $invoice_id and group_id = $group_id and org_id = $org_id";
     } else {
-      $sql = "update tt_expense_items set invoice_id = null".
+      $sql = "update tt_expense_items set invoice_id = null".$modified_part.
         " where invoice_id = $invoice_id and group_id = $group_id and org_id = $org_id";
     }
     $affected = $mdb2->exec($sql);
@@ -246,12 +225,14 @@ class ttInvoiceHelper {
 
     $client_id = (int) $fields['client_id'];
 
-    $start_date = new DateAndTime($user->date_format, $fields['start_date']);
-    $start = $start_date->toString(DB_DATEFORMAT);
+    $start_date = new ttDate($fields['start_date'], $user->getDateFormat());
+    $start = $start_date->toString();
 
-    $end_date = new DateAndTime($user->date_format, $fields['end_date']);
-    $end = $end_date->toString(DB_DATEFORMAT);
+    $end_date = new ttDate($fields['end_date'], $user->getDateFormat());
+    $end = $end_date->toString();
 
+    $project_id = null;
+    $project_part = '';
     if (isset($fields['project_id'])) $project_id = (int) $fields['project_id'];
 
     // Our query is different depending on tracking mode.
@@ -322,15 +303,17 @@ class ttInvoiceHelper {
 
     $client_id = (int) $fields['client_id'];
 
-    $invoice_date = new DateAndTime($user->date_format, $fields['date']);
-    $date = $invoice_date->toString(DB_DATEFORMAT);
+    $invoice_date = new ttDate($fields['date'], $user->getDateFormat());
+    $date = $invoice_date->toString();
 
-    $start_date = new DateAndTime($user->date_format, $fields['start_date']);
-    $start = $start_date->toString(DB_DATEFORMAT);
+    $start_date = new ttDate($fields['start_date'], $user->getDateFormat());
+    $start = $start_date->toString();
 
-    $end_date = new DateAndTime($user->date_format, $fields['end_date']);
-    $end = $end_date->toString(DB_DATEFORMAT);
+    $end_date = new ttDate($fields['end_date'], $user->getDateFormat());
+    $end = $end_date->toString();
 
+    $project_id = null;
+    $project_part = '';
     if (isset($fields['project_id'])) $project_id = (int) $fields['project_id'];
 
     // Create a new invoice record.
@@ -351,7 +334,7 @@ class ttInvoiceHelper {
         " where l.status = 1 and l.client_id = $client_id and l.invoice_id is null".
         " and l.group_id = $group_id and l.org_id = $org_id".
         " and l.date >= ".$mdb2->quote($start)." and l.date <= ".$mdb2->quote($end).
-        " and l.billable = 1"; // l.billable * u.rate * time_to_sec(l.duration)/3600 > 0"; // See explanation below.
+        " and l.duration > 0 and l.billable = 1"; // l.billable * u.rate * time_to_sec(l.duration)/3600 > 0"; // See explanation below.
     } else {
        // sql part for project id.
       if ($project_id) $project_part = " and l.project_id = $project_id";
@@ -363,7 +346,7 @@ class ttInvoiceHelper {
         " where l.status = 1 and l.client_id = $client_id $project_part and l.invoice_id is null".
         " and l.group_id = $group_id and l.org_id = $org_id".
         " and l.date >= ".$mdb2->quote($start)." and l.date <= ".$mdb2->quote($end).
-        " and l.billable = 1"; //  l.billable * upb.rate * time_to_sec(l.duration)/3600 > 0";
+        " and l.duration > 0 and l.billable = 1"; //  l.billable * upb.rate * time_to_sec(l.duration)/3600 > 0";
         // Users with a lot of clients and projects (Jaro) may forget to set user rates properly.
         // Specifically, user rate may be set to 0 on a project, by mistake. This leads to error.no_invoiceable_items
         // and increased support cost. Commenting out allows us to include 0 cost items in invoices so that
@@ -503,5 +486,21 @@ class ttInvoiceHelper {
     $body .= '</body></html>';
 
     return $body;
+  }
+
+  // validSortOption validates user input for sort option.
+  static function validSortOption($option, $emptyValid = false) {
+    if (!$option)
+      return ($emptyValid ? true : false);
+
+    $valid_options = array('name', 'client', 'date');
+
+    return (in_array($option, $valid_options) ? true : false);
+  }
+
+  // validSortOrder validates user input for sort order.
+  static function validSortOrder($order) {
+    $valid_options = array('ascending', 'descending');
+    return (in_array($order, $valid_options) ? true : false);
   }
 }

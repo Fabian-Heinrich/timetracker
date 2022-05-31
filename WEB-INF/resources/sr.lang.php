@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -33,8 +9,6 @@ $i18n_language = 'Serbian (Srpski)';
 $i18n_months = array('Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun', 'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar');
 $i18n_weekdays = array('Nedelja', 'Ponedeljak', 'Utorak', 'Sreda', 'Četvrtak', 'Petak', 'Subota');
 $i18n_weekdays_short = array('Ne', 'Po', 'Ut', 'Sr', 'Če', 'Pe', 'Su');
-// format dd/mm
-$i18n_holidays = array('01/01', '02/01', '07/01', '15/01', '16/02', '29/04', '30/04', '01/05', '02/05', '03/05', '22/04', '09/05', '28/06', '21/10', '11/11');
 
 $i18n_key_words = array(
 
@@ -45,21 +19,25 @@ $i18n_key_words = array(
 'menu.forum' => 'Forum',
 'menu.help' => 'Pomoć',
 // TODO: translate the following.
-// 'menu.create_group' => 'Create Group',
+// 'menu.register' => 'Register',
 'menu.profile' => 'Profil',
 // TODO: translate the following.
 // 'menu.group' => 'Group',
 'menu.plugins' => 'Dodaci',
 'menu.time' => 'Vreme',
+// TODO: translate the following.
+// 'menu.puncher' => 'Punch',
+// 'menu.week' => 'Week',
 'menu.expenses' => 'Troškovi',
 'menu.reports' => 'Izveštaji',
+// TODO: translate the following.
+// 'menu.timesheets' => 'Timesheets',
 'menu.charts' => 'Grafikoni',
 'menu.projects' => 'Projekti',
 'menu.tasks' => 'Zadaci',
 'menu.users' => 'Korisnici',
 // TODO: translate the following.
 // 'menu.groups' => 'Groups',
-// 'menu.subgroups' => 'Subgroups',
 'menu.export' => 'Izvoz',
 'menu.clients' => 'Klijenti',
 'menu.options' => 'Opcije',
@@ -75,6 +53,7 @@ $i18n_key_words = array(
 'error.sys' => 'Greška u sistemu.',
 'error.db' => 'Greška u bazi podataka.',
 // TODO: translate the following.
+// 'error.registered_recently' => 'Registered recently.',
 // 'error.feature_disabled' => 'Feature is disabled.',
 'error.field' => 'Pogrešan "{0}" podatak.',
 'error.empty' => 'Polje "{0}" je prazno.',
@@ -87,6 +66,9 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'error.record' => 'Select record.',
 'error.auth' => 'Pogrešno korisničko ime ili lozinka.',
+// TODO: translate the following.
+// 'error.2fa_code' => 'Invalid 2FA code.',
+// 'error.weak_password' => 'Weak password.',
 'error.user_exists' => 'Korisnik pod ovim imenom već postoji.',
 // TODO: translate the following.
 // 'error.object_exists' => 'Object with this name already exists.',
@@ -94,6 +76,8 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'error.role_exists' => 'Role with this rank already exists.',
 'error.no_invoiceable_items' => 'Nema stavke za naplatu.',
+// TODO: translate the following.
+// 'error.no_records' => 'There are no records.',
 'error.no_login' => 'Nema korisnika pod ovom prijavom',
 'error.no_groups' => 'Vaša baza podataka je prazna. Prijavite se kao administrator i napravite novi tim.', // TODO: replace "team" with "group".
 'error.upload' => 'Greška pri otpremanju podatka.',
@@ -113,6 +97,7 @@ $i18n_key_words = array(
 // 'error.format' => 'Invalid file format.',
 // 'error.user_count' => 'Limit on user count.',
 // 'error.expired' => 'Expiration date reached.',
+// 'error.file_storage' => 'File storage server error.', // See comment in English file.
 
 // Warning messages.
 // TODO: translate the following.
@@ -140,9 +125,17 @@ $i18n_key_words = array(
 'button.export' => 'Izvezi tim', // TODO: replace "team" with "group".
 'button.import' => 'Uvezi tim', // TODO: replace "team" with "group".
 'button.close' => 'Zatvori',
+// TODO: translate the following.
+// 'button.start' => 'Start',
 'button.stop' => 'Stani',
+// TODO: translate the following.
+// 'button.approve' => 'Approve',
+// 'button.disapprove' => 'Disapprove',
+// 'button.sync' => 'Sync', // Used in Android app. The meaning is to synchronize offline time records with server.
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
+// TODO: translate the following.
+// 'label.menu' => 'Menu',
 'label.group_name' => 'Naziv tim-a', // TODO: replace "team" with "group".
 'label.address' => 'Adresa',
 'label.currency' => 'Valuta',
@@ -200,6 +193,7 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'label.day_view' => 'Day view',
 // 'label.week_view' => 'Week view',
+// 'label.puncher' => 'Puncher',
 'label.id' => 'ID',
 'label.language' => 'Jezik',
 'label.decimal_mark' => 'Decimala',
@@ -218,18 +212,18 @@ $i18n_key_words = array(
 'label.ldap_hint' => 'Unesi tvoju <b>Windows prijavu</b> i <b>lozinku</b> u polje ispod.',
 'label.required_fields' => '* - obavezna polja',
 'label.on_behalf' => 'ispred',
-'label.role_manager' => '(menadžer)',
-'label.role_comanager' => '(saradnik)',
-'label.role_admin' => '(administrator)',
 'label.page' => 'Strana',
 // TODO: translate the following.
 // 'label.condition' => 'Condition',
 // 'label.yes' => 'yes',
 // 'label.no' => 'no',
+// 'label.sort' => 'Sort',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 'label.custom_fields' => 'Dodatna polja',
 // Translate the following.
 // 'label.monthly_quotas' => 'Monthly quotas',
+// TODO: translate the following.
+// 'label.entity' => 'Entity',
 'label.type' => 'Tipovi',
 'label.type_dropdown' => 'odaberi',
 'label.type_text' => 'text',
@@ -243,22 +237,44 @@ $i18n_key_words = array(
 // 'label.quantity' => 'Quantity',
 // 'label.paid_status' => 'Paid status',
 // 'label.paid' => 'Paid',
-// 'button.mark_paid' => 'Mark paid',
+// 'label.mark_paid' => 'Mark paid',
 // 'label.week_note' => 'Week note',
 // 'label.week_list' => 'Week list',
+// 'label.weekends' => 'Weekends',
 // 'label.work_units' => 'Work units',
 'label.totals_only' => 'Samo zbirno',
 // TODO: translate the following.
 // 'label.quota' => 'Quota',
+// 'label.timesheet' => 'Timesheet',
+// 'label.submitted' => 'Submitted',
+// 'label.approved' => 'Approved',
+// 'label.approval' => 'Report approval',
+// 'label.mark_approved' => 'Mark approved',
+// 'label.template' => 'Template',
+// 'label.bind_templates_with_projects' => 'Bind templates with projects',
+// 'label.prepopulate_note' => 'Prepopulate Note field',
+// 'label.attachments' => 'Attachments',
+// 'label.files' => 'Files',
+// 'label.file' => 'File',
+'label.active_users' => 'Aktivni korisnik',
+'label.inactive_users' => 'Neaktivni korisnik',
+
+// Entity names. We use lower case (in English) because they are used in dropdowns, too.
+// They are used to associate a custom field with an entity type.
+// TODO: translate the following.
+// 'entity.time' => 'time',
+// 'entity.user' => 'user',
+// 'entity.project' => 'project',
 
 // Form titles.
 'title.error' => 'Greška',
 // TODO: Translate the following.
 // 'title.success' => 'Success',
 'title.login' => 'Prijava',
+// TODO: translate the follolwing.
+// 'title.2fa' => 'Two Factor Authentication',
 'title.groups' => 'Timovi', // TODO: change "teams" to "groups".
 // TODO: translate the following.
-// 'title.subgroups' => 'Subgroups',
 // 'title.add_group' => 'Adding Group',
 'title.edit_group' => 'Izmeni tim', // TODO: change "team" to "group".
 'title.delete_group' => 'Obriši tim', // TODO: change "team" to "group".
@@ -267,16 +283,27 @@ $i18n_key_words = array(
 'title.time' => 'Vreme',
 'title.edit_time_record' => 'Izmeni unos vremena',
 'title.delete_time_record' => 'Obriši unos vremena',
+// TODO: Translate the following.
+// 'title.time_files' => 'Time Record Files',
+// 'title.puncher' => 'Puncher',
 'title.expenses' => 'Troškovi',
 'title.edit_expense' => 'Izmeni stavke troškova',
 'title.delete_expense' => 'Obriši stavke troškova',
+// TODO: translate the following.
+// 'title.expense_files' => 'Expense Item Files',
 'title.reports' => 'Izveštaji',
 'title.report' => 'Izveštaj',
 'title.send_report' => 'Slanje izveštaja',
+// TODO: Translate the following.
+// 'title.timesheets' => 'Timesheets',
+// 'title.timesheet' => 'Timesheet',
+// 'title.timesheet_files' => 'Timesheet Files',
 'title.invoice' => 'Račun',
 'title.send_invoice' => 'Slanje računa',
 'title.charts' => 'Grafikoni',
 'title.projects' => 'Projekti',
+// TODO: translate the following.
+// 'title.project_files' => 'Project Files',
 'title.add_project' => 'Dodavanje projekta',
 'title.edit_project' => 'Izmena projekta',
 'title.delete_project' => 'Brisanje projekta',
@@ -305,10 +332,16 @@ $i18n_key_words = array(
 'title.add_notification' => 'Dodavanje napomene',
 'title.edit_notification' => 'Izmena napomene',
 'title.delete_notification' => 'Brisanje napomene',
+// TODO: translate the following.
+// 'title.add_timesheet' => 'Adding Timesheet',
+// 'title.edit_timesheet' => 'Editing Timesheet',
+// 'title.delete_timesheet' => 'Deleting Timesheet',
 // 'title.monthly_quotas' => 'Monthly Quotas',
 'title.export' => 'Izvoz podataka tim-a', // TODO: replace "team" with "group".
 'title.import' => 'Uvoz podataka tim-a', // TODO: replace "team" with "group".
 'title.options' => 'Opcije',
+// TODO: translate the following.
+// 'title.display_options' => 'Display Options',
 'title.profile' => 'Profil',
 'title.plugins' => 'Dodaci',
 'title.cf_custom_fields' => 'Dodatna polja',
@@ -326,6 +359,13 @@ $i18n_key_words = array(
 // 'title.week_view' => 'Week View',
 // 'title.swap_roles' => 'Swapping Roles',
 // 'title.work_units' => 'Work Units',
+// 'title.templates' => 'Templates',
+// 'title.add_template' => 'Adding Template',
+// 'title.edit_template' => 'Editing Template',
+// 'title.delete_template' => 'Deleting Template',
+// 'title.edit_file' => 'Editing File',
+// 'title.delete_file' => 'Deleting File',
+// 'title.download_file' => 'Downloading File',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -351,13 +391,19 @@ $i18n_key_words = array(
 'dropdown.clients' => 'klijenti',
 'dropdown.select' => '--- odaberi ---',
 'dropdown.select_invoice' => '--- odaberi račun ---',
+// TODO: translate the following.
+// 'dropdown.select_timesheet' => '--- select timesheet ---',
 'dropdown.status_active' => 'aktivan',
 'dropdown.status_inactive' => 'neaktivan',
 'dropdown.delete' => 'obriši',
 'dropdown.do_not_delete' => 'nemoj obrisati',
 // TODO: translate the following.
+// 'dropdown.approved' => 'approved',
+// 'dropdown.not_approved' => 'not approved',
 // 'dropdown.paid' => 'paid',
 // 'dropdown.not_paid' => 'not paid',
+// 'dropdown.ascending' => 'ascending',
+// 'dropdown.descending' => 'descending',
 
 // Below is a section for strings that are used on individual forms. When a string is used only on one form it should be placed here.
 // One exception is for closely related forms such as "Time" and "Editing Time Record" with similar controls. In such cases
@@ -366,13 +412,25 @@ $i18n_key_words = array(
 
 // Forma prijave. Pogledajte primer na https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'Zaboravili ste lozinku?',
+ // TODO: re-translate form.login.about as it has changed.
+ // 'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> is an open source time tracking system.',
 'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> je jednostavan i lak za korišćenje za praćenje radnog vremena.',
+
+// Email subject and body for two-factor authentication.
+// TODO: translate the following.
+// 'email.2fa_code.subject' => 'Anuko Time Tracker two-factor authentication code',
+// 'email.2fa_code.body' => "Dear User,\n\nYour two-factor authentication code is:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+// TODO: translate the following.
+// 'form.2fa.hint' => 'Check your email for 2FA code and enter it here.',
+// 'form.2fa.2fa_code' => '2FA code',
 
 // Izmena forme za lozinku. Pogledajte primer na https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => 'Zahtev za izmenu lozinke je poslat mejlom.',
 'form.reset_password.email_subject' => 'Anuko Time Tracker zahtev za izmenu lozinke',
-// TODO: English string has changed. "from IP" added. Re-translate the beginning.
-// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is a simple, easy to use, open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
+// TODO: English string has changed. Re-translate.
+// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is an open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
 // "IP %s" probably sounds awkward.
 'form.reset_password.email_body' => "Poštovani korisniče,\n\nneko, IP %s, ste poslali zahtev za izmenu lozinke na Anuko Time Tracker nalogu. Molimo da pratite link ako želite da izmenite lozinku.\n\n%s\n\nAnuko Time Tracker je jednostavan i lak za korišćenje za praćenje radnog vremena. Posetite nas na https://www.anuko.com za više informacija.\n\n",
 
@@ -403,9 +461,16 @@ $i18n_key_words = array(
 'form.reports.include_not_billable' => 'ne naplativo',
 'form.reports.include_invoiced' => 'obračunato',
 'form.reports.include_not_invoiced' => 'nije obračunato',
+// TODO: translate the following.
+// 'form.reports.include_assigned' => 'assigned',
+// 'form.reports.include_not_assigned' => 'not assigned',
+// 'form.reports.include_pending' => 'pending',
 'form.reports.select_period' => 'Odaberi vremenski raspon',
 'form.reports.set_period' => 'ili podesi datum',
 'form.reports.show_fields' => 'Prikaži polja u izveštaju',
+// TODO: translate the following.
+// 'form.reports.time_fields' => 'Time fields',
+// 'form.reports.user_fields' => 'User fields',
 'form.reports.group_by' => 'Grupiši po',
 'form.reports.group_by_no' => '--- nemoj grupisati ---',
 'form.reports.group_by_date' => 'datum',
@@ -419,9 +484,20 @@ $i18n_key_words = array(
 'form.report.export' => 'Izvoz',
 // TODO: translate the following.
 // 'form.report.assign_to_invoice' => 'Assign to invoice',
+// 'form.report.assign_to_timesheet' => 'Assign to timesheet',
 
-// Forma izveštaja. Pogledajte primer na https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+// TODO: translate the following.
+// 'form.timesheets.active_timesheets' => 'Active Timesheets',
+// 'form.timesheets.inactive_timesheets' => 'Inactive Timesheets',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+// TODO: translate the following.
+// 'form.templates.active_templates' => 'Active Templates',
+// 'form.templates.inactive_templates' => 'Inactive Templates',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => 'Broj računa',
 'form.invoice.person' => 'Osoba',
 
@@ -444,9 +520,8 @@ $i18n_key_words = array(
 'form.tasks.inactive_tasks' => 'Neaktivni zadaci',
 
 // Korisnička forma. Pogledajte primer na https://timetracker.anuko.com/users.php
-'form.users.active_users' => 'Aktivni korisnik',
-'form.users.inactive_users' => 'Neaktivni korisnik',
 // TODO: translate the following.
+// 'form.users.uncompleted_entry_today' => 'User has an uncompleted time entry today',
 // 'form.users.uncompleted_entry' => 'User has an uncompleted time entry',
 'form.users.role' => 'Funkcija',
 'form.users.manager' => 'Menadžer',
@@ -495,7 +570,8 @@ $i18n_key_words = array(
 'form.group_edit.12_hours' => '12 časova',
 'form.group_edit.24_hours' => '24 časova',
 // TODO: translate the following.
-// 'form.group_edit.show_holidays' => 'Show holidays',
+// 'form.group_edit.display_options' => 'Display options',
+// 'form.group_edit.holidays' => 'Holidays',
 'form.group_edit.tracking_mode' => 'Način evidencije',
 'form.group_edit.mode_time' => 'vreme',
 'form.group_edit.mode_projects' => 'projekti',
@@ -506,20 +582,28 @@ $i18n_key_words = array(
 'form.group_edit.type_duration' => 'trajanje',
 // TODO: translate the following.
 // 'form.group_edit.punch_mode' => 'Punch mode',
+// 'form.group_edit.one_uncompleted' => 'One uncompleted',
 // 'form.group_edit.allow_overlap' => 'Allow overlap',
 // 'form.group_edit.future_entries' => 'Future entries',
 // 'form.group_edit.uncompleted_indicators' => 'Uncompleted indicators',
 // 'form.group_edit.confirm_save' => 'Confirm saving',
-// 'form.group_edit.allow_ip' => 'Allow IP',
+// 'form.group_edit.advanced_settings' => 'Advanced settings',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+// TODO: Translate the following.
+// 'form.group_advanced_edit.allow_ip' => 'Allow IP',
+// 'form.group_advanced_edit.password_complexity' => 'Password complexity',
+// 'form.group_advanced_edit.2fa' => 'Two factor authentication',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 // TODO: translate the following.
 // 'form.group_delete.hint' => 'Are you sure you want to delete the entire group?',
 
 // Forma mejla. Pogledajte primer na https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'Od',
 'form.mail.to' => 'Za',
 'form.mail.report_subject' => 'Evidencija vremena',
+// TODO: retranslate form.mail.footer as the English string has changed.
+// 'form.mail.footer' => 'Anuko Time Tracker is an open source<br>time tracking system. Visit <a href="https://www.anuko.com">www.anuko.com</a> for more information.',
 'form.mail.footer' => 'Anuko Time Tracker je jednostavan i lak za korišćenje za praćenje <br>radnog vremena. Posetite <a href="https://www.anuko.com">www.anuko.com</a> za više informacija.',
 'form.mail.report_sent' => 'Izveštaj poslat.',
 'form.mail.invoice_sent' => 'Račun poslat.',
@@ -548,7 +632,7 @@ $i18n_key_words = array(
 // 'role.user.description' => 'A regular member without management rights.',
 // 'role.client.label' => 'Client',
 // 'role.client.low_case_label' => 'client',
-// 'role.client.description' => 'A client can view its own reports, charts, and invoices.',
+// 'role.client.description' => 'A client can view its own data.',
 // 'role.supervisor.label' => 'Supervisor',
 // 'role.supervisor.low_case_label' => 'supervisor',
 // 'role.supervisor.description' => 'A person with a small set of management rights.',
@@ -564,4 +648,20 @@ $i18n_key_words = array(
 // 'role.admin.label' => 'Administrator',
 // 'role.admin.low_case_label' => 'administrator',
 // 'role.admin.description' => 'Site adminsitrator.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+// TODO: translate the following.
+// 'form.timesheet_view.submit_subject' => 'Timesheet approval request',
+// 'form.timesheet_view.submit_body' => "A new timesheet requires approval.<p>User: %s.",
+// 'form.timesheet_view.approve_subject' => 'Timesheet approved',
+// 'form.timesheet_view.approve_body' => "Your timesheet %s was approved.<p>%s",
+// 'form.timesheet_view.disapprove_subject' => 'Timesheet not approved',
+// 'form.timesheet_view.disapprove_body' => "Your timesheet %s was not approved.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+// TODO: translate the following.
+// 'form.display_options.note_on_separate_row' => 'Note on separate row',
+// 'form.display_options.not_complete_days' => 'Not complete days',
+// 'form.display_options.inactive_projects' => 'Inactive projects',
+// 'form.display_options.custom_css' => 'Custom CSS',
 );

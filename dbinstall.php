@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('WEB-INF/config.php');
 require_once('WEB-INF/lib/common.lib.php');
@@ -47,8 +23,37 @@ function ttExecute($sql) {
     print "Successful update.<br>\n";
 }
 
+// ttGenerateKeys - generates keys for groups that do not have them.
+function ttGenerateKeys() {
+  $mdb2 = getConnection();
+  $sql = "select id from tt_groups where group_key is null and status = 1";
+  $res = $mdb2->query($sql);
+  if (is_a($res, 'PEAR_Error')) die($res->getMessage());
+
+  $numGroups = 0;
+  while ($val = $res->fetchRow()) {
+    $group_id = $val['id'];
+    $group_key = $mdb2->quote(ttRandomString());
+    $sql = "update tt_groups set group_key = $group_key where id = $group_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error')) die($affected->getMessage());
+    $numGroups++;
+  }
+  print "<br>Generated keys for $numGroups groups.<br>\n";
+}
+
 if ($request->isGet()) {
   echo('<h2>Environment Checks</h2>');
+
+  // Determine if cookies are enabled in browser.
+  // session_start(); // already called in initialize.php.
+  $session_id1 = session_id();
+  session_destroy();
+  session_start();
+  $session_id2 = session_id();
+  if ($session_id1 != $session_id2) {
+    echo('<font color="red">Error: browser cookies are off.</font><br>');
+  }
 
   // Check if WEB-INF/templates_c dir is writable.
   if (is_writable(APP_DIR.'/WEB-INF/templates_c/')) {
@@ -62,12 +67,15 @@ if ($request->isGet()) {
     echo('WEB-INF/config.php file exists.<br>');
 
     // Config file must start with the PHP opening tag. We are checking this because
-    // a Unicode editor may insert a byte order mark (BOM) before it. This is not good as it will
-    // spit white space before output in some situations such as in PDF reports.
+    // a Unicode editor may insert a byte order mark (BOM) before it.
+    // This is not good as it is printed as unintentional white space in output.
+    // Consequences:
+    //   1) PHP redirects may stop working, depending on server settings.
+    //   2) PDF reports and attachment downloads will become unusable (cannot open files).
     $file = fopen(APP_DIR.'/WEB-INF/config.php', 'r');
     $line = fgets($file);
     if (strcmp("<?php\n", $line) !== 0 && strcmp("<?php\r\n", $line) !== 0) {
-      echo('<font color="red">Error: WEB-INF/config.php file does not start with PHP opening tag.</font><br>');
+      echo('<font color="red">Error: WEB-INF/config.php file does not start with a PHP opening tag.</font>  See <a href="https://www.anuko.com/lp/tt_33.htm" target="_blank">explanation</a>.<br>');
     }
     fclose($file);
   } else {
@@ -86,15 +94,20 @@ if ($request->isGet()) {
   // $required_version = '5.2.1'; // Something in TCPDF library does not work below this one.
   $required_version = '5.4.0';    // Week view (week.php) requires 5.4 because of []-way of referencing arrays.
                                   // This needs further investigation as we use [] elsewhere without obvious problems.
-  if (version_compare(phpversion(), $required_version, '>=')) {
-    echo('PHP version: '.phpversion().', good enough.<br>');
-  } else {
-    echo('<font color="red">Error: PHP version is not high enough: '.phpversion().'. Required: '.$required_version.'.</font><br>');
-  }
+  // Note: unmodified smarty 4.1.0 that we needed for php 8.1 support uses plp 5.6 and 7.0 features.
+  // Currently, embedded smarty in this product is adjusted to still support php 5.4.
+  // Next time we update smarty we may need to increase $required_version.
 
-  // Check if PHP session path is writeable.
-  if (!is_writable(session_save_path())) {
-    echo('<font color="red">Error: PHP session path '.session_save_path().' is not writable.</font><br>');
+  // Print a warning about php >= 8.1 because of a breaking change
+  // with mysqli default error mode, see https://php.watch/versions/8.1/mysqli-error-mode
+  if (version_compare(phpversion(), '8.1', '>=')) {
+    echo('<font color="red">Error: This app was not tested with PHP version: '.phpversion().'</font><br>');
+  } else {
+    if (version_compare(phpversion(), $required_version, '>=')) {
+      echo('PHP version: '.phpversion().', good enough.<br>');
+    } else {
+      echo('<font color="red">Error: PHP version is not high enough: '.phpversion().'. Required: '.$required_version.'.</font><br>');
+    }
   }
 
   // Depending on DSN, require either mysqli or mysql extensions.
@@ -168,13 +181,17 @@ if ($request->isGet()) {
     echo('<font color="red">There are no tables in database. Execute step 1 - Create database structure.</font><br>');
   }
 
-  $sql = "select param_value from tt_site_config where param_name = 'version_db'";
-  $res = $conn->query($sql);
-  if (is_a($res, 'MDB2_Error')) {
-    echo('<font color="red">Error: database schema version query failed. '.$res->getMessage().'</font><br>');
-  } else {
-    $val = $res->fetchRow();
-    echo('Database version is: '.$val['param_value'].'.');
+  try {
+    $sql = "select param_value from tt_site_config where param_name = 'version_db'";
+    $res = $conn->query($sql);
+    if (is_a($res, 'MDB2_Error')) {
+      echo('<font color="red">Error: database schema version query failed. '.$res->getMessage().'</font><br>');
+    } else {
+      $val = $res->fetchRow();
+      echo('Database version is: '.$val['param_value'].'.');
+    }
+  } catch (Exception $e) {
+    echo('<font color="red">Caught exception: '.$e->getMessage().'</font><br>');
   }
 
   $conn->disconnect();
@@ -664,10 +681,10 @@ if ($_POST) {
     print "Updated $clients_updated clients...<br>\n";
   }
 
-  // The update_custom_fields function updates option_id field field in tt_custom_field_log table.
+  // The update_custom_fields function updates option_id field in tt_custom_field_log table.
   if ($_POST['update_custom_fields']) {
     $mdb2 = getConnection();
-    $sql = "update tt_custom_field_log set option_id = value where field_id in (select id from tt_custom_fields where type = 2)";
+    $sql = "update tt_custom_field_log set option_id = value where option_id is null and value is not null and field_id in (select id from tt_custom_fields where type = 2)";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       die($affected->getMessage());
@@ -755,7 +772,7 @@ if ($_POST) {
     ttExecute("ALTER TABLE `tt_log` MODIFY `timestamp` timestamp default CURRENT_TIMESTAMP");
     ttExecute("ALTER TABLE `tt_tmp_refs` MODIFY `timestamp` timestamp default CURRENT_TIMESTAMP");
     ttExecute("CREATE TABLE `tt_roles` (`id` int(11) NOT NULL auto_increment, `team_id` int(11) NOT NULL, `name` varchar(80) default NULL, `rank` int(11) default 0, `rights` text default NULL, `status` tinyint(4) default 1, PRIMARY KEY (`id`))");
-    ttExecute("create unique index role_idx on tt_roles(team_id, rank, status)");
+    ttExecute("create unique index role_idx on tt_roles(team_id, `rank`, status)");
     ttExecute("ALTER TABLE `tt_roles` ADD `description` varchar(255) default NULL AFTER `name`");
     ttExecute("ALTER TABLE `tt_users` ADD `role_id` int(11) default NULL AFTER `role`");
     ttExecute("CREATE TABLE `tt_site_config` (`param_name` varchar(32) NOT NULL, `param_value` text default NULL, `created` datetime default NULL, `updated` datetime default NULL, PRIMARY KEY (`param_name`))");
@@ -763,11 +780,11 @@ if ($_POST) {
     ttExecute("INSERT INTO `tt_roles` (`team_id`, `name`, `rank`, `rights`) VALUES (0, 'Site administrator', 1024, 'administer_site')");
     ttExecute("INSERT INTO `tt_roles` (`team_id`, `name`, `rank`, `rights`) VALUES (0, 'Top manager', 512, 'data_entry,view_own_data,manage_own_settings,view_users,on_behalf_data_entry,view_data,override_punch_mode,swap_roles,approve_timesheets,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,manage_features,manage_basic_settings,manage_advanced_settings,manage_roles,export_data,manage_subgroups')");
     ttExecute("UPDATE `tt_site_config` SET `param_value` = '1.17.35' where param_name = 'version_db'");
-    ttExecute("update `tt_users` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set role_id = (select id from tt_roles where rank = 1024) where role = 1024");
-    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = 'data_entry,view_own_reports,view_own_charts,view_own_invoices,manage_own_settings,view_users,on_behalf_data_entry,view_reports,view_charts,override_punch_mode,swap_roles,approve_timesheets,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,manage_features,manage_basic_settings,manage_advanced_settings,manage_roles,export_data,manage_subgroups' where team_id = 0 and rank = 512");
+    ttExecute("update `tt_users` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set role_id = (select id from tt_roles where `rank` = 1024) where role = 1024");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = 'data_entry,view_own_reports,view_own_charts,view_own_invoices,manage_own_settings,view_users,on_behalf_data_entry,view_reports,view_charts,override_punch_mode,swap_roles,approve_timesheets,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,manage_features,manage_basic_settings,manage_advanced_settings,manage_roles,export_data,manage_subgroups' where team_id = 0 and `rank` = 512");
     ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = replace(rights, 'view_own_data', 'view_own_reports,view_own_charts') where team_id > 0");
     ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = replace(rights, 'view_data', 'view_reports,view_charts') where team_id > 0");
-    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = replace(rights, 'view_own_charts,manage_own_settings', 'view_own_charts,view_own_invoices,manage_own_settings') where team_id > 0 and rank = 16");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.35') set rights = replace(rights, 'view_own_charts,manage_own_settings', 'view_own_charts,view_own_invoices,manage_own_settings') where team_id > 0 and `rank` = 16");
     ttExecute("UPDATE `tt_site_config` SET `param_value` = '1.17.40' where param_name = 'version_db'");
     ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.40') set rights = replace(rights, 'on_behalf_data_entry', 'track_time,track_expenses')");
     ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.40') set rights = replace(rights, 'data_entry', 'track_own_time,track_own_expenses')");
@@ -819,7 +836,7 @@ if ($_POST) {
   if ($_POST["convert11744to11797"]) {
     ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.44') set rights = replace(rights, 'override_punch_mode,override_date_lock', 'override_punch_mode,override_own_punch_mode,override_date_lock')");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.48' where param_name = 'version_db' and param_value = '1.17.44'");
-    ttExecute("update `tt_users` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.48') set role_id = (select id from tt_roles where team_id = 0 and rank = 512) where role = 324");
+    ttExecute("update `tt_users` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.48') set role_id = (select id from tt_roles where team_id = 0 and `rank` = 512) where role = 324");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.49' where param_name = 'version_db' and param_value = '1.17.48'");
     ttExecute("ALTER TABLE `tt_users` drop role");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.50' where param_name = 'version_db' and param_value = '1.17.49'");
@@ -908,7 +925,7 @@ if ($_POST) {
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.86', modified = now() where param_name = 'version_db' and param_value = '1.17.85'");
     ttExecute("ALTER TABLE `tt_groups` ADD `password_complexity` varchar(64) default NULL AFTER `allow_ip`");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.87', modified = now() where param_name = 'version_db' and param_value = '1.17.86'");
-    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.87') set rights = replace(rights, 'manage_subgroups', 'manage_subgroups,delete_group') where rank = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.17.87') set rights = replace(rights, 'manage_subgroups', 'manage_subgroups,delete_group') where `rank` = 512");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.88', modified = now() where param_name = 'version_db' and param_value = '1.17.87'");
     ttExecute("ALTER TABLE `tt_fav_reports` ADD `show_work_units` tinyint(4) NOT NULL DEFAULT '0' AFTER `show_custom_field_1`");
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.17.92', modified = now() where param_name = 'version_db' and param_value = '1.17.88'");
@@ -967,7 +984,7 @@ if ($_POST) {
     print "Updated $tt_expense_items_updated tt_expense_items records...<br>\n";
   }
 
-  if ($_POST["convert11797to11836"]) {
+  if ($_POST["convert11797to11900"]) {
     ttExecute("ALTER TABLE `tt_fav_reports` CHANGE `group_by` `group_by1` varchar(20) default NULL");
     ttExecute("ALTER TABLE `tt_fav_reports` ADD `group_by2` varchar(20) default NULL AFTER `group_by1`");
     ttExecute("ALTER TABLE `tt_fav_reports` ADD `group_by3` varchar(20) default NULL AFTER `group_by2`");
@@ -1056,10 +1073,133 @@ if ($_POST) {
     ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.36', modified = now() where param_name = 'version_db' and param_value = '1.18.34'");
     ttExecute("update `tt_users` u inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.36') set u.quota_percent = 100.00 where u.quota_percent is null");
     ttExecute("ALTER TABLE `tt_users` modify `quota_percent` float(6,2) NOT NULL default '100.00'");
+    ttExecute("CREATE TABLE `tt_timesheets` (`id` int(11) NOT NULL auto_increment, `user_id` int(11) NOT NULL, `group_id` int(11) default NULL, `org_id` int(11) default NULL, `client_id` int(11) default NULL, `name` varchar(80) COLLATE utf8mb4_bin NOT NULL, `submit_status` tinyint(4) default NULL, `submitter_comment` text, `approval_status` tinyint(4) default NULL, `manager_comment` text, `created` datetime default NULL, `created_ip` varchar(45) default NULL, `created_by` int(11) default NULL, `modified` datetime default NULL, `modified_ip` varchar(45) default NULL, `modified_by` int(11) default NULL, `status` tinyint(4) default 1, PRIMARY KEY (`id`))");
+    ttExecute("ALTER TABLE `tt_log` ADD `timesheet_id` int(11) default NULL AFTER `task_id`");
+    ttExecute("create index timesheet_idx on tt_log(timesheet_id)");
+    ttExecute("ALTER TABLE `tt_expense_items` ADD `timesheet_id` int(11) default NULL AFTER `project_id`");
+    ttExecute("create index timesheet_idx on tt_expense_items(timesheet_id)");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.37', modified = now() where param_name = 'version_db' and param_value = '1.18.36'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.37') set rights = 'track_own_time,track_own_expenses,view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts,view_own_invoices,view_own_projects,view_own_tasks,manage_own_settings,view_users,track_time,track_expenses,view_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,manage_features,manage_advanced_settings,manage_roles,export_data,manage_subgroups,delete_group' where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.37') set rights = replace(rights, 'view_own_reports,view_own_charts', 'view_own_reports,view_own_timesheets,view_own_charts') where `rank` = 16");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.37') set rights = replace(rights, 'view_own_reports,view_own_charts', 'view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts') where `rank` = 4 or `rank` = 12 or `rank` = 68 or `rank` = 324");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.37') set rights = replace(rights, 'view_reports,view_charts', 'view_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts') where `rank` = 12 or `rank` = 68 or `rank` = 324");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.37') set rights = replace(rights, 'swap_roles,approve_timesheets', 'swap_roles') where `rank` = 12 or `rank` = 68 or `rank` = 324");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.38', modified = now() where param_name = 'version_db' and param_value = '1.18.37'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.38') set rights = 'track_own_time,track_own_expenses,view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts,view_own_invoices,view_own_projects,view_own_tasks,manage_own_settings,view_users,track_time,track_expenses,view_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,view_all_timesheets,manage_all_timesheets,manage_features,manage_advanced_settings,manage_roles,export_data,approve_all_timesheets,manage_subgroups,delete_group' where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.38') set rights = replace(rights, 'view_all_reports', 'view_all_reports,view_all_timesheets,manage_all_timesheets') where `rank` = 68 or `rank` = 324");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.38') set rights = replace(rights, 'export_data,manage_subgroups', 'export_data,approve_all_timesheets,manage_subgroups') where `rank` = 324");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.39', modified = now() where param_name = 'version_db' and param_value = '1.18.38'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.39') set rights = 'track_own_time,track_own_expenses,view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts,view_own_projects,view_own_tasks,manage_own_settings,view_users,view_client_reports,view_client_timesheets,view_client_invoices,track_time,track_expenses,view_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,view_all_timesheets,manage_all_timesheets,manage_features,manage_advanced_settings,manage_roles,export_data,approve_all_timesheets,manage_subgroups,delete_group' where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.39') set rights = replace(rights, 'view_own_reports', 'view_client_reports') where `rank` = 16");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.39') set rights = replace(rights, 'view_own_charts,', '') where `rank` = 16");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.39') set rights = replace(rights, 'view_own_timesheets', 'view_client_timesheets') where `rank` = 16");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.39') set rights = replace(rights, 'view_own_invoices', 'view_client_invoices') where `rank` = 16");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.40', modified = now() where param_name = 'version_db' and param_value = '1.18.39'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.40') set rights = replace(rights, 'view_client_timesheets,view_client_invoices', 'view_client_timesheets,view_client_unapproved,view_client_invoices') where `rank` = 16");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.41', modified = now() where param_name = 'version_db' and param_value = '1.18.40'");
+    ttExecute("ALTER TABLE `tt_log` ADD `approved` tinyint(4) default 0 AFTER `billable`");
+    ttExecute("ALTER TABLE `tt_expense_items` ADD `approved` tinyint(4) default 0 AFTER `invoice_id`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.42', modified = now() where param_name = 'version_db' and param_value = '1.18.41'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.42') set rights = 'track_own_time,track_own_expenses,view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts,view_own_projects,view_own_tasks,manage_own_settings,view_users,view_client_reports,view_client_timesheets,view_client_unapproved,view_client_invoices,track_time,track_expenses,view_reports,approve_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,view_all_timesheets,manage_all_timesheets,manage_features,manage_advanced_settings,manage_roles,export_data,approve_all_reports,approve_all_timesheets,manage_subgroups,delete_group' where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.42') set rights = replace(rights, 'view_reports,view_timesheets', 'view_reports,approve_reports,view_timesheets') where `rank` = 12 or `rank` = 68 or `rank` = 324");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.42') set rights = replace(rights, 'export_data,approve_all_timesheets', 'export_data,approve_all_reports,approve_all_timesheets') where `rank` = 324");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.43', modified = now() where param_name = 'version_db' and param_value = '1.18.42'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.43') set rights = 'track_own_time,track_own_expenses,view_own_reports,view_own_timesheets,manage_own_timesheets,view_own_charts,view_own_projects,view_own_tasks,manage_own_settings,view_users,view_client_reports,view_client_timesheets,view_client_invoices,track_time,track_expenses,view_reports,approve_reports,view_timesheets,manage_timesheets,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,view_all_timesheets,manage_all_timesheets,manage_features,manage_advanced_settings,manage_roles,export_data,approve_all_reports,approve_all_timesheets,manage_subgroups,view_client_unapproved,delete_group' where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.43') set rights = replace(rights, 'view_client_timesheets,view_client_unapproved,view_client_invoices', 'view_client_timesheets,view_client_invoices') where `rank` = 16");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.44', modified = now() where param_name = 'version_db' and param_value = '1.18.43'");
+    ttExecute("ALTER TABLE `tt_fav_reports` ADD `approved` tinyint(4) default NULL AFTER `billable`");
+    ttExecute("ALTER TABLE `tt_fav_reports` ADD `timesheet` tinyint(4) default NULL AFTER `invoice`");
+    ttExecute("ALTER TABLE `tt_fav_reports` ADD `show_timesheet` tinyint(4) NOT NULL default 0 AFTER `show_project`");
+    ttExecute("ALTER TABLE `tt_fav_reports` ADD `show_approved` tinyint(4) NOT NULL default 0 AFTER `show_note`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.45', modified = now() where param_name = 'version_db' and param_value = '1.18.44'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.45') set rights = replace(rights, 'view_client_timesheets,', '')");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.46', modified = now() where param_name = 'version_db' and param_value = '1.18.45'");
+    ttExecute("ALTER TABLE `tt_timesheets` ADD `comment` text AFTER `name`");
+    ttExecute("ALTER TABLE `tt_timesheets` ADD `start_date` date NOT NULL AFTER `comment`");
+    ttExecute("ALTER TABLE `tt_timesheets` ADD `end_date` date NOT NULL AFTER `start_date`");
+    ttExecute("ALTER TABLE `tt_timesheets` DROP `submitter_comment`");
+    ttExecute("ALTER TABLE `tt_timesheets` CHANGE `approval_status` `approve_status` tinyint(4) default NULL");
+    ttExecute("ALTER TABLE `tt_timesheets` CHANGE `manager_comment` `approve_comment` text");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.47', modified = now() where param_name = 'version_db' and param_value = '1.18.46'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.47') set rights = replace(rights, 'view_own_timesheets,', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.47') set rights = replace(rights, 'view_timesheets,', '')");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.48', modified = now() where param_name = 'version_db' and param_value = '1.18.47'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.48') set rights = replace(rights, 'manage_own_timesheets,', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.48') set rights = replace(rights, 'manage_timesheets,', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.48') set rights = replace(rights, 'view_all_timesheets,', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.48') set rights = replace(rights, 'manage_all_timesheets,', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.48') set rights = replace(rights, 'approve_all_timesheets,', 'approve_own_timesheets,')");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.49', modified = now() where param_name = 'version_db' and param_value = '1.18.48'");
+    ttExecute("ALTER TABLE `tt_timesheets` ADD `project_id` int(11) default NULL AFTER `client_id`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.50', modified = now() where param_name = 'version_db' and param_value = '1.18.49'");
+    ttExecute("drop index timesheet_idx on tt_expense_items");
+    ttExecute("ALTER TABLE `tt_expense_items` DROP `timesheet_id`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.51', modified = now() where param_name = 'version_db' and param_value = '1.18.50'");
+    ttExecute("CREATE TABLE `tt_templates` (`id` int(11) NOT NULL auto_increment,`group_id` int(11) default NULL,`org_id` int(11) default NULL,`name` varchar(80) COLLATE utf8mb4_bin NOT NULL,`content` text,`created` datetime default NULL,`created_ip` varchar(45) default NULL,`created_by` int(11) default NULL,`modified` datetime default NULL,`modified_ip` varchar(45) default NULL,`modified_by` int(11) default NULL,`status` tinyint(4) default 1,PRIMARY KEY  (`id`))");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.54', modified = now() where param_name = 'version_db' and param_value = '1.18.51'");
+    ttExecute("ALTER TABLE `tt_templates` ADD `description` varchar(255) default NULL AFTER `name`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.55', modified = now() where param_name = 'version_db' and param_value = '1.18.54'");
+    ttExecute("CREATE TABLE `tt_files` (`id` int(10) unsigned NOT NULL auto_increment,`group_id` int(10) unsigned,`org_id` int(10) unsigned,`remote_id` bigint(20) unsigned,`entity_type` varchar(32),`entity_id` int(10) unsigned,`file_name` varchar(80) COLLATE utf8mb4_bin NOT NULL,`description` varchar(255) default NULL,`created` datetime default NULL,`created_ip` varchar(45) default NULL,`created_by` int(10) unsigned,`modified` datetime default NULL,`modified_ip` varchar(45) default NULL,`modified_by` int(10) unsigned,`status` tinyint(1) default 1,PRIMARY KEY (`id`))");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.59', modified = now() where param_name = 'version_db' and param_value = '1.18.55'");
+    ttExecute("ALTER TABLE `tt_files` ADD `file_key` varchar(32) AFTER `remote_id`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.60', modified = now() where param_name = 'version_db' and param_value = '1.18.59'");
+    ttExecute("ALTER TABLE `tt_groups` ADD `group_key` varchar(32) AFTER `org_id`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.18.61', modified = now() where param_name = 'version_db' and param_value = '1.18.60'");
+    ttGenerateKeys();
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.61') set rights = replace(rights, 'swap_roles', 'swap_roles,update_work') where `rank` >= 12");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.18.61') set rights = replace(rights, 'view_all_reports', 'view_all_reports,manage_work,bid_on_work') where `rank` >= 68");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.0', modified = now() where param_name = 'version_db' and param_value = '1.18.61'");
+  }
+
+  if ($_POST["convert11900to12102"]) {
+    ttExecute("CREATE TABLE `tt_work_currencies` (`id` int(10) unsigned NOT NULL,`name` varchar(10) NOT NULL,PRIMARY KEY (`id`))");
+    ttExecute("create unique index currency_idx on tt_work_currencies(`name`)");
+    ttExecute("INSERT INTO `tt_work_currencies` (`id`, `name`) VALUES ('1', 'USD'), ('2', 'CAD'), ('3', 'AUD'), ('4', 'EUR'), ('5', 'NZD')");
+    ttExecute("CREATE TABLE `tt_work_categories` (`id` int(10) unsigned NOT NULL, `parents` text default NULL, `name` varchar(64) NOT NULL, `name_localized` text default NULL, PRIMARY KEY (`id`))");
+    ttExecute("INSERT INTO `tt_work_categories` (`id`, `parents`, `name`, `name_localized`) VALUES ('1', NULL, 'Coding', 'es:Codificación,ru:Кодирование')");
+    ttExecute("INSERT INTO `tt_work_categories` (`id`, `parents`, `name`, `name_localized`) VALUES ('2', NULL, 'Other', 'es:Otra,ru:Другое')");
+    ttExecute("INSERT INTO `tt_work_categories` (`id`, `parents`, `name`, `name_localized`) VALUES ('3', '1', 'PHP', NULL)");
+    ttExecute("INSERT INTO `tt_work_categories` (`id`, `parents`, `name`, `name_localized`) VALUES ('4', '1', 'C/C++', NULL)");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.3', modified = now() where param_name = 'version_db' and param_value = '1.19.0'");
+    ttExecute("ALTER TABLE `tt_groups` ADD `holidays` text default null AFTER `lock_spec`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.4', modified = now() where param_name = 'version_db' and param_value = '1.19.3'");
+    ttExecute("ALTER TABLE `tt_custom_fields` ADD `entity_type` varchar(32) NOT NULL default 'time' AFTER `org_id`");
+    ttExecute("update `tt_custom_fields` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.19.4') set entity_type = 1 where entity_type = 'time'");
+    ttExecute("ALTER TABLE `tt_custom_fields` modify entity_type tinyint(4) NOT NULL default '1'");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.6', modified = now() where param_name = 'version_db' and param_value = '1.19.4'");
+    ttExecute("CREATE TABLE `tt_entity_custom_fields` (`id` int(10) unsigned NOT NULL auto_increment,`group_id` int(10) unsigned NOT NULL,`org_id` int(10) unsigned NOT NULL,`entity_type` tinyint(4) NOT NULL,`entity_id` int(10) unsigned NOT NULL,`field_id` int(10) unsigned NOT NULL,`option_id` int(10) unsigned default NULL,`value` varchar(255) default NULL,`created` datetime default NULL,`created_ip` varchar(45) default NULL,`created_by` int(10) unsigned default NULL,`modified` datetime default NULL,`modified_ip` varchar(45) default NULL,`modified_by` int(10) unsigned default NULL,`status` tinyint(4) default 1,PRIMARY KEY  (`id`))");
+    ttExecute("create unique index entity_idx on tt_entity_custom_fields(entity_type, entity_id, field_id)");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.7', modified = now() where param_name = 'version_db' and param_value = '1.19.6'");
+    ttExecute("ALTER TABLE `tt_fav_reports` drop `cf_1_option_id`");
+    ttExecute("ALTER TABLE `tt_fav_reports` drop `show_custom_field_1`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.14', modified = now() where param_name = 'version_db' and param_value = '1.19.7'");
+    ttExecute("CREATE TABLE `tt_project_template_binds` (`project_id` int(10) unsigned NOT NULL,`template_id` int(10) unsigned NOT NULL,`group_id` int(10) unsigned NOT NULL,`org_id` int(10) unsigned NOT NULL)");
+    ttExecute("create index project_idx on tt_project_template_binds(project_id);");
+    ttExecute("create index template_idx on tt_project_template_binds(template_id)");
+    ttExecute("create unique index project_template_idx on tt_project_template_binds(project_id, template_id)");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.17', modified = now() where param_name = 'version_db' and param_value = '1.19.14'");
+    ttExecute("ALTER TABLE `tt_groups` ADD `custom_css` text default NULL AFTER `config`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.19', modified = now() where param_name = 'version_db' and param_value = '1.19.17'");
+    ttExecute("ALTER TABLE `tt_cron` ADD `comment` text AFTER `subject`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.22', modified = now() where param_name = 'version_db' and param_value = '1.19.19'");
+    ttExecute("ALTER TABLE `tt_groups` drop `task_required`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.23', modified = now() where param_name = 'version_db' and param_value = '1.19.22'");
+    ttExecute("ALTER TABLE `tt_groups` ADD `entities_modified` datetime default NULL AFTER `modified_by`");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.19.29', modified = now() where param_name = 'version_db' and param_value = '1.19.23'");
+    ttExecute("DROP TABLE `tt_work_currencies`");
+    ttExecute("DROP TABLE `tt_work_categories`");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.19.29') set rights = replace(rights, 'swap_roles,update_work', 'swap_roles') where `rank` >= 12");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.19.29') set rights = replace(rights, 'view_all_reports,manage_work,bid_on_work', 'view_all_reports') where `rank` >= 68");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.20.0', modified = now() where param_name = 'version_db' and param_value = '1.19.29'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.20.0') set rights = replace(rights, 'manage_basic_settings,view_all_reports', 'manage_basic_settings,view_all_charts,view_all_reports') where `rank` >= 68");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.21.0', modified = now() where param_name = 'version_db' and param_value = '1.20.0'");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.21.0') set rights = replace(rights, 'view_client_unapproved,delete_group', 'view_client_unapproved,override_2fa,delete_group') where `rank` = 512");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.21.0') set rights = replace(rights, ',manage_work', '')");
+    ttExecute("update `tt_roles` inner join `tt_site_config` sc on (sc.param_name = 'version_db' and sc.param_value = '1.21.0') set rights = replace(rights, ',update_work', '')");
+    ttExecute("UPDATE `tt_site_config` SET param_value = '1.21.2', modified = now() where param_name = 'version_db' and param_value = '1.21.0'");
   }
 
   if ($_POST["cleanup"]) {
-
     $mdb2 = getConnection();
     $inactive_orgs = ttOrgHelper::getInactiveOrgs();
 
@@ -1074,6 +1214,7 @@ if ($_POST) {
     ttExecute("OPTIMIZE TABLE tt_clients");
     ttExecute("OPTIMIZE TABLE tt_config");
     ttExecute("OPTIMIZE TABLE tt_cron");
+    ttExecute("OPTIMIZE TABLE tt_timesheets");
     ttExecute("OPTIMIZE TABLE tt_custom_field_log");
     ttExecute("OPTIMIZE TABLE tt_custom_field_options");
     ttExecute("OPTIMIZE TABLE tt_custom_fields");
@@ -1082,6 +1223,8 @@ if ($_POST) {
     ttExecute("OPTIMIZE TABLE tt_invoices");
     ttExecute("OPTIMIZE TABLE tt_log");
     ttExecute("OPTIMIZE TABLE tt_monthly_quotas");
+    ttExecute("OPTIMIZE TABLE tt_templates");
+    ttExecute("OPTIMIZE TABLE tt_project_template_binds");
     ttExecute("OPTIMIZE TABLE tt_predefined_expenses");
     ttExecute("OPTIMIZE TABLE tt_project_task_binds");
     ttExecute("OPTIMIZE TABLE tt_projects");
@@ -1091,6 +1234,7 @@ if ($_POST) {
     ttExecute("OPTIMIZE TABLE tt_user_project_binds");
     ttExecute("OPTIMIZE TABLE tt_users");
     ttExecute("OPTIMIZE TABLE tt_roles");
+    ttExecute("OPTIMIZE TABLE tt_files");
   }
 
   print "Done.<br>\n";
@@ -1103,7 +1247,7 @@ if ($_POST) {
 <h2>DB Install</h2>
 <table width="80%" border="1" cellpadding="10" cellspacing="0">
   <tr>
-    <td width="80%"><b>Create database structure (v1.18.36)</b>
+    <td width="80%"><b>Create database structure (v1.21.2)</b>
     <br>(applies only to new installations, do not execute when updating)</br></td><td><input type="submit" name="crstructure" value="Create"></td>
   </tr>
 </table>
@@ -1148,8 +1292,12 @@ if ($_POST) {
   </tr>
   </tr>
   <tr valign="top">
-    <td>Update database structure (v1.17.97 to v1.18.36)</td>
-    <td><input type="submit" name="convert11797to11836" value="Update"></td>
+    <td>Update database structure (v1.17.97 to v1.19)</td>
+    <td><input type="submit" name="convert11797to11900" value="Update"></td>
+  </tr>
+  <tr valign="top">
+    <td>Update database structure (v1.19 to v1.21.2)</td>
+    <td><input type="submit" name="convert11900to12102" value="Update"></td>
   </tr>
 </table>
 

@@ -1,46 +1,20 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('form.TextField');
-import('DateAndTime');
+import('ttDate');
 
 class DateField extends TextField {
   var $mWeekStartDay = 0;
   var $mDateFormat  = "d/m/Y";
   var $lToday      = "Today";
-  var $mDateObj;
 
   var $lCalendarButtons = array('today'=>'Today', 'close'=>'Close');
 
   function __construct($name) {
     $this->class = 'DateField';
     $this->name = $name;
-    $this->mDateObj = new DateAndTime();
     $this->localize();
   }
 
@@ -48,8 +22,6 @@ class DateField extends TextField {
     global $user;
     global $i18n;
   	
-    $this->mDateObj->setFormat($user->getDateFormat());
-
     $this->mMonthNames = $i18n->monthNames;
     $this->mWeekDayShortNames = $i18n->weekdayShortNames;
     $this->lToday = $i18n->get('label.today');
@@ -57,21 +29,21 @@ class DateField extends TextField {
     $this->lCalendarButtons['close'] = $i18n->get('button.close');
 
     $this->mDateFormat = $user->getDateFormat();
-    $this->mWeekStartDay = $user->week_start;
+    $this->mWeekStartDay = $user->getWeekStart();
   }
 
   // set current value taken from session or database
   function setValueSafe($value)  {
     if (isset($value) && (strlen($value) > 0)) {
-      $this->mDateObj->parseVal($value, DB_DATEFORMAT);
-      $this->value = $this->mDateObj->toString($this->mDateFormat); //?
+      $ttDate = new ttDate($value);
+      $this->value = $ttDate->toString($this->mDateFormat);
     }
   }
   // get value for storing in session or database
   function getValueSafe() {
     if (strlen($this->value)>0) {
-      $this->mDateObj->parseVal($this->value, $this->mDateFormat);  //?
-      return $this->mDateObj->toString(DB_DATEFORMAT);
+      $ttDate = new ttDate($this->value, $this->mDateFormat);
+      return $ttDate->toString();
     } else {
       return null;
     }
@@ -406,10 +378,13 @@ class DateField extends TextField {
       $html .= " value=\"".htmlspecialchars($this->getValue())."\"";
       $html .= ">";
       
-      if (APP_NAME)
-      	$app_root = '/'.APP_NAME;
+      $dir_name = $app_root = '';
+      if (defined('DIR_NAME'))
+        $dir_name = trim(constant('DIR_NAME'), '/');
+      if (!empty($dir_name))
+        $app_root = '/'.$dir_name;
 
-      $html .= "&nbsp;<img src=\"".$app_root."/images/calendar.gif\" width=\"16\" height=\"16\" onclick=\"displayDatePicker('".$this->name."');\">\n";
+      $html .= "&nbsp;<img src=\"".$app_root."/img/calendar.gif\" width=\"16\" height=\"16\" onclick=\"displayDatePicker('".$this->name."');\">\n";
     }
 
     return $html;

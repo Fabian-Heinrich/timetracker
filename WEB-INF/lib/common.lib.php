@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // import() function loads a class.
 function import($class_name) {
@@ -105,13 +81,6 @@ function import($class_name) {
 		return null;
 	}
 
-	function stripslashes_deep($value) {
-	    $value = is_array($value) ?
-                array_map('stripslashes_deep', $value) :
-                stripslashes($value);
-    	return $value;
-	}
-
 	function &getConnection() {
         if (!isset($GLOBALS["_MDB2_CONNECTION"])) {
 
@@ -143,18 +112,6 @@ function time_to_decimal($val) {
   return $decimalTime;
 }
 
-function sec_to_time_fmt_hm($sec)
-{
-  return sprintf("%d:%02d", $sec / 3600, $sec % 3600 / 60);
-}
-
-function magic_quotes_off()
-{
-  $_POST = array_map('stripslashes_deep', $_POST);
-  $_GET = array_map('stripslashes_deep', $_GET);
-  $_COOKIE = array_map('stripslashes_deep', $_COOKIE);
-}
-
 // check_extension checks whether a required PHP extension is loaded and dies if not so.
 function check_extension($ext)
 {
@@ -171,15 +128,47 @@ function isTrue($val)
 // ttValidString is used to check user input to validate a string.
 function ttValidString($val, $emptyValid = false)
 {
+  if (is_null($val)) {
+    return $emptyValid ? true : false;
+  }
+
   $val = trim($val);
   if (strlen($val) == 0 && !$emptyValid)
     return false;
-    
+
   // String must not be XSS evil (to insert JavaScript).
   if (stristr($val, '<script>') || stristr($val, '<script '))
     return false;
-    
+
   return true;    
+}
+
+// ttValidCss is used to check user input for custom css.
+function ttValidCss($val)
+{
+  $val = trim($val);
+  if (strlen($val) == 0)
+    return true;
+
+  // String must not contain any tags.
+  if (stristr($val, '<'))
+    return false;
+
+  // Security note: the above may not be enough.
+  // Currently it is unclear how vulnerable we are assuming custom css is available only to a logged on user
+  // (one custom css per group).
+  // However, if abuse occurs or when the issue is better understood, we may have to rewrite this function,
+  // perhaps by specifying what exactly we allow to style.
+  return true;
+}
+
+// ttValidTemplateText is used to check template-based user input.
+// When templates are used, required input parts must be filled by user.
+// We identify these parts by 3 "stop sign" emojis (aka "octagonal sign" U+1F6D1).
+function ttValidTemplateText($val)
+{
+  $valid = strpos($val, '🛑🛑🛑') === false; // no 3 "stop sign" emojis in a row.
+  return $valid;
 }
 
 // ttValidEmail is used to check user input to validate an email string.
@@ -234,21 +223,102 @@ function ttValidFloat($val, $emptyValid = false)
   return true;    
 }
 
+// ttValidStatus is used to check user input to validate a status value.
+function ttValidStatus($val)
+{
+  if (null == $val)
+    return true;
+
+  if (!ttValidInteger($val))
+    return false;
+
+  $intVal = (int) $val; // Cast to int for comparisons below to work.
+  if ($intVal != ACTIVE && $intVal != INACTIVE)
+    return false;
+
+  return true;
+}
+
 // ttValidDate is used to check user input to validate a date.
 function ttValidDate($val)
 {
+  if (is_null($val))
+    return false;
+
   $val = trim($val);
   if (strlen($val) == 0)
     return false;
 
-  // This should accept a string in format 'YYYY-MM-DD', 'MM/DD/YYYY', 'DD.MM.YYYY', or 'DD.MM.YYYY whatever'.
-  if (!preg_match('/^\d\d\d\d-\d\d-\d\d$/', $val) &&
-    !preg_match('/^\d\d\/\d\d\/\d\d\d\d$/', $val) &&
-    !preg_match('/^\d\d\.\d\d\.\d\d\d\d$/', $val) &&
-    !preg_match('/^\d\d\.\d\d\.\d\d\d\d .+$/', $val))
-    return false;
+  global $user;
+  $dateFormat = $user->getDateFormat();
+
+  switch ($dateFormat) {
+    case '%Y-%m-%d':
+      if (preg_match('/^\d\d\d\d-\d\d-\d\d$/', $val)) {
+        // Validate a string in format 'YYYY-MM-DD'.
+        $date_parts = explode('-', $val);
+        return checkdate($date_parts[1], $date_parts[2], $date_parts[0]);
+      }
+      break;
+    case '%m/%d/%Y':
+      if (preg_match('/^\d\d\/\d\d\/\d\d\d\d$/', $val)) {
+        // Validate a string in format 'MM/DD/YYYY'.
+        $date_parts = explode('/', $val);
+        return checkdate($date_parts[0], $date_parts[1], $date_parts[2]);
+      }
+      break;
+    case '%d-%m-%Y':
+      if (preg_match('/^\d\d\-\d\d\-\d\d\d\d$/', $val)) {
+        // Validate a string in format 'DD-MM-YYYY'.
+        $date_parts = explode('-', $val);
+        return checkdate($date_parts[1], $date_parts[0], $date_parts[2]);
+      }
+      break;
+    case '%d.%m.%Y':
+      if (preg_match('/^\d\d\.\d\d\.\d\d\d\d$/', $val)) {
+        // Validate a string in format 'DD.MM.YYYY'.
+        $date_parts = explode('.', $val);
+        return checkdate($date_parts[1], $date_parts[0], $date_parts[2]);
+      }
+      break;
+    case '%d.%m.%Y %a':
+      if (preg_match('/^\d\d\.\d\d\.\d\d\d\d .+$/', $val)) {
+        // Validate a string in format 'DD.MM.YYYY whatever'.
+        $date_parts = explode('.', $val);
+        $date_parts[2] = substr($date_parts[2], 0, 4); // Ignore localized day of week.
+        return checkdate($date_parts[1], $date_parts[0], $date_parts[2]);
+      }
+      break; 
     
-  return true;    
+  }
+  return false;
+}
+
+// ttValidDbDateFormatDate is used to check user input to validate a date in DB_DATEFORMAT.
+function ttValidDbDateFormatDate($val)
+{
+  if (is_null($val) || strlen($val) == 0)
+    return false;
+
+  // This should validate a string in format 'YYYY-MM-DD'.
+  if (!preg_match('/^\d\d\d\d-\d\d-\d\d$/', $val))
+    return false;
+
+  $date_parts = explode('-', $val);
+  return checkdate($date_parts[1], $date_parts[2], $date_parts[0]);
+}
+
+// ttValidTime is used to check user input for time post.
+function ttValidTime($val)
+{
+  if (is_null($val) || strlen($val) == 0)
+    return false;
+
+  // This should validate a time string in 24 hour format hh:mm.
+  if (!preg_match('/^(2[0-3]|[01]?[0-9]):([0-5]?[0-9])$/', $val))
+    return false;
+
+  return true;
 }
 
 // ttValidInteger is used to check user input to validate an integer.
@@ -319,7 +389,8 @@ function ttValidCondition($val, $emptyValid = true)
   if (stristr($val, '<script>') || stristr($val, '<script '))
     return false;
 
-  if (!preg_match("/^count\s?(=|[<>]=?|<>)\s?\d+$/", $val))
+  if (!preg_match("/^count\s?(=|[<>]=?|<>)\s?\d+$/", $val) &&
+      !preg_match("/^hours\s?(=|[<>]=?|<>)\s?\d+$/", $val))
     return false;
 
   return true;
@@ -345,6 +416,71 @@ function ttValidIP($val, $emptyValid = false)
   return true;
 }
 
+// ttValidHolidays is used to check user input to validate holidays spec.
+// To keep things simple, the format is a comma-separated list of dates:
+// ****-01-01,****-12-31,2019-04-20
+// The above means Jan 1 and Dec 31 are holidays in all years, while Apr 20 is only in 2019.
+function ttValidHolidays($val)
+{
+  $val = trim($val);
+  if (strlen($val) == 0) return true;
+
+  $dates = explode(',', $val);
+  foreach ($dates as $date) {
+    if (!preg_match('/^[\d*]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/', $date))
+      return false;
+  }
+  return true;
+}
+
+// ttValidPasswordComplexity is used to check user input for password complexity field.
+function ttValidPasswordComplexity($complexityExample)
+{
+  // Password complexity example may contain a-z, A-Z, 0-9, #, and *.
+  if (!preg_match('/^[a-zA-Z0-9#*]*$/', $complexityExample))
+    return false;
+
+  return true;
+}
+
+// ttCheckPasswordComplexity checks password complexity.
+function ttCheckPasswordComplexity($password)
+{
+  global $user;
+  $complexity = $user->getPasswordComplexity();
+  if (empty($complexity))
+    return true;
+
+  // Password complexity must be enforced.
+  if (strlen($password) < strlen($complexity))
+    return false; // Password is too short.
+
+  $numDigitsRequired = preg_match_all( "/[0-9]/", $complexity);
+  $numDigitsSupplied = preg_match_all( "/[0-9]/", $password);
+  if ($numDigitsSupplied < $numDigitsRequired)
+    return false; // Number of digits in password is less than required number in complexity example.
+
+  $numCapitalsRequired = preg_match_all( "/[A-Z]/", $complexity);
+  $numCapitalsSupplied = preg_match_all( "/[A-Z]/", $password);
+  if ($numCapitalsSupplied < $numCapitalsRequired)
+    return false; // Number of capitals A-Z in password is less than required number in complexity example.
+
+  $numLowercaseRequired = preg_match_all( "/[a-z]/", $complexity);
+  $numLowercaseSupplied = preg_match_all( "/[a-z]/", $password);
+  if ($numLowercaseSupplied < $numLowercaseRequired)
+    return false; // Number of lowercase letter a-z in password is less than required number in complexity example.
+
+  // Finally check the number of "all other" characters that are not alphanumeric. This includes utf-8 characters.
+  $numNotAlphanumericRequired = preg_match_all( "/[#]/", $complexity);
+  $passwordRemainder = preg_replace("/[a-zA-Z0-9]/", "", $password);
+  $numNotAlphanumericSupplied = mb_strlen($passwordRemainder);
+  if ($numNotAlphanumericSupplied < $numNotAlphanumericRequired)
+    return false;
+
+  return true;
+}
+
+
 // ttAccessAllowed checks whether user is allowed access to a particular page.
 // It is used as an initial check on all publicly available pages
 // (except login.php, register.php, and others where we don't have to check).
@@ -358,6 +494,10 @@ function ttAccessAllowed($required_right)
     header('Location: login.php');
     exit();
   }
+
+  // Protection against cross site request forgery.
+  if (!ttMitigateCSRF())
+    return false;
 
   // Check IP restriction, if set.
   if ($user->allow_ip && !$user->can('override_allow_ip')) {
@@ -384,25 +524,79 @@ function ttAccessAllowed($required_right)
   return false;
 }
 
+// ttMitigateCSRF verifies request headers in an attempt to block cross site request forgery.
+function ttMitigateCSRF() {
+  // No need to do anything for get requests.
+  global $request;
+  if ($request->isGet())
+    return true;
+
+  $origin = $_SERVER['HTTP_ORIGIN'];
+  if ($origin) {
+    $pos = strpos($origin, '//');
+    $origin = substr($origin, $pos+2); // Strip protocol.
+  }
+  if (!$origin) {
+    // Try using referer.
+    $origin = $_SERVER['HTTP_REFERER'];
+    if ($origin) {
+      $pos = strpos($origin, '//');
+      $origin = substr($origin, $pos+2); // Strip protocol.
+      $pos = strpos($origin, '/');
+      $origin = substr($origin, 0, $pos); // Leave host only.
+    }
+  }
+  $target = defined('HTTP_TARGET') ? HTTP_TARGET : $_SERVER['HTTP_HOST'];
+  if (strcmp($origin, $target)) {
+    error_log("Potential cross site request forgery. Origin: '$origin' does not match target: '$target'.");
+    return false; // Origin and target do not match.
+  }
+
+  return true;
+}
+
 // ttStartsWith functions checks if a string starts with a given substring.
 function ttStartsWith($string, $startString)
 {
-    $len = strlen($startString);
-    return (substr($string, 0, $len) === $startString);
+  if (is_null($string))
+    return false;
+
+  $len = strlen($startString);
+  return (substr($string, 0, $len) === $startString);
 }
 
 // ttEndsWith functions checks if a string ends with a given substring.
 function ttEndsWith($string, $endString)
 {
-    $len = strlen($endString);
-    if ($len == 0) return true;
-    return (substr($string, -$len) === $endString);
+  $len = strlen($endString);
+  if ($len == 0) return true;
+  return (substr($string, -$len) === $endString);
 }
 
 // ttDateToUserFormat converts a date from database format to user format.
 function ttDateToUserFormat($date)
 {
   global $user;
-  $o_date = new DateAndTime(DB_DATEFORMAT, $date);
+  $o_date = new ttDate($date);
   return $o_date->toString($user->date_format);
+}
+
+// ttRandomString generates a random alphanumeric string.
+function ttRandomString($length = 32) {
+  $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  $charactersLength = strlen($characters);
+  $randomString = '';
+  for ($i = 0; $i < $length; $i++) {
+    $randomString .= $characters[rand(0, $charactersLength - 1)];
+  }
+  return $randomString;
+}
+
+// ttNeutralizeForCsv neutralizes user input for export to CSV files
+// by removing =, +, -, and @ characters from the beginning of cell values.
+// This mitigates a risk of CSV injection, see https://owasp.org/www-community/attacks/CSV_Injection
+// Additionally, it replaces each quote character with a double quote.
+function ttNeutralizeForCsv($val) {
+  $result = ltrim($val, '=+-@');
+  return str_replace('"', '""', $result);
 }

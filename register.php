@@ -1,35 +1,11 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
 
-if (!isTrue('MULTITEAM_MODE') || $auth->isPasswordExternal()) {
+if (!isTrue('MULTIORG_MODE') || $auth->isPasswordExternal()) {
   header('Location: login.php');
   exit();
 }
@@ -42,6 +18,8 @@ $auth->doLogout();
 
 if (!defined('CURRENCY_DEFAULT')) define('CURRENCY_DEFAULT', '$');
 
+$cl_group_name = $cl_currency = $cl_lang = $cl_manager_name = $cl_manager_login =
+$cl_password1 = $cl_password2 = $cl_manager_email = '';
 if ($request->isPost()) {
   $cl_group_name = trim($request->getParameter('group_name'));
   $cl_currency = trim($request->getParameter('currency'));
@@ -77,7 +55,7 @@ foreach ($lang_files as $lfile) {
   $longname_lang[] = array('id'=>I18n::getLangFromFilename($lfile),'name'=>$lname);
 }
 $longname_lang = mu_sort($longname_lang, 'name');
-$form->addInput(array('type'=>'combobox','name'=>'lang','style'=>'width: 200px','data'=>$longname_lang,'datakeys'=>array('id','name'),'value'=>$cl_lang));
+$form->addInput(array('type'=>'combobox','name'=>'lang','data'=>$longname_lang,'datakeys'=>array('id','name'),'value'=>$cl_lang));
 
 $form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'manager_name','value'=>$cl_manager_name));
 $form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'manager_login','value'=>$cl_manager_login));
@@ -106,7 +84,7 @@ if ($request->isPost()) {
   if ($err->no()) {
     // Registration successful.
     if ($auth->doLogin($cl_manager_login, $cl_password1)) {
-      setcookie('tt_login', $cl_manager_login, time() + COOKIE_EXPIRE, '/');
+      setcookie(LOGIN_COOKIE_NAME, $cl_manager_login, time() + COOKIE_EXPIRE, '/');
       header('Location: time.php');
     } else {
       header('Location: login.php');

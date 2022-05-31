@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -33,8 +9,6 @@ $i18n_language = 'Russian (Русский)';
 $i18n_months = array('Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь');
 $i18n_weekdays = array('Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота');
 $i18n_weekdays_short = array('Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб');
-// format mm/dd
-$i18n_holidays = array('01/01', '01/07', '02/23', '03/08', '05/01', '05/09', '06/12', '11/04');
 
 $i18n_key_words = array(
 
@@ -44,19 +18,21 @@ $i18n_key_words = array(
 'menu.logout' => 'Выйти',
 'menu.forum' => 'Форум',
 'menu.help' => 'Справка',
-'menu.create_group' => 'Создать группу',
+'menu.register' => 'Регистрация',
 'menu.profile' => 'Профиль',
 'menu.group' => 'Группа',
 'menu.plugins' => 'Плагины',
 'menu.time' => 'Время',
+'menu.puncher' => 'Пробить',
+'menu.week' => 'Неделя',
 'menu.expenses' => 'Расходы',
 'menu.reports' => 'Отчёты',
+'menu.timesheets' => 'Табели',
 'menu.charts' => 'Диаграммы',
 'menu.projects' => 'Проекты',
 'menu.tasks' => 'Задачи',
 'menu.users' => 'Пользователи',
 'menu.groups' => 'Группы',
-'menu.subgroups' => 'Подгруппы',
 'menu.export' => 'Экспорт',
 'menu.clients' => 'Клиенты',
 'menu.options' => 'Опции',
@@ -71,6 +47,7 @@ $i18n_key_words = array(
 'error.access_denied' => 'Доступ запрещён.',
 'error.sys' => 'Системная ошибка.',
 'error.db' => 'Ошибка базы данных.',
+'error.registered_recently' => 'Недавняя регистрация.',
 'error.feature_disabled' => 'Функция отключена.',
 'error.field' => 'Некорректные данные в поле "{0}".',
 'error.empty' => 'Пустое поле "{0}".',
@@ -82,11 +59,14 @@ $i18n_key_words = array(
 'error.report' => 'Выберите отчёт.',
 'error.record' => 'Выберите запись.',
 'error.auth' => 'Неправильно введен логин или пароль.',
+'error.2fa_code' => 'Неверный код 2FA.',
+'error.weak_password' => 'Слабый пароль.',
 'error.user_exists' => 'Пользователь с таким логином уже существует.',
 'error.object_exists' => 'Объект с таким именем уже есть.',
 'error.invoice_exists' => 'Счёт с таким номером уже есть.',
 'error.role_exists' => 'Роль с таким рангом уже есть.',
 'error.no_invoiceable_items' => 'Нет записей для включения в счёт.',
+'error.no_records' => 'Нет записей.',
 'error.no_login' => 'Нет пользователя с таким логином.',
 'error.no_groups' => 'Ваша база данных пуста. Войдите в систему как администратор и создайте новую группу.',
 'error.upload' => 'Ошибка загрузки файла.',
@@ -102,6 +82,7 @@ $i18n_key_words = array(
 'error.format' => 'Неверный формат файла.',
 'error.user_count' => 'Ограничение на количество пользователей.',
 'error.expired' => 'Достигнута дата экспирации.',
+'error.file_storage' => 'Ошибка сервера для хранения файлов.',
 
 // Warning messages.
 'warn.sure' => 'Вы уверены?',
@@ -127,9 +108,14 @@ $i18n_key_words = array(
 'button.export' => 'Экспортировать группу',
 'button.import' => 'Импортировать группу',
 'button.close' => 'Закрыть',
+'button.start' => 'Начать',
 'button.stop' => 'Завершить',
+'button.approve' => 'Одобрить',
+'button.disapprove' => 'Не одобрить',
+'button.sync' => 'Синхронизовать',
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
+'label.menu' => 'Меню',
 'label.group_name' => 'Название группы',
 'label.address' => 'Адрес',
 'label.currency' => 'Валюта',
@@ -181,6 +167,7 @@ $i18n_key_words = array(
 'label.select_none' => 'Снять все отметки',
 'label.day_view' => 'День',
 'label.week_view' => 'Неделя',
+'label.puncher' => 'Пробиватель',
 'label.id' => 'ID',
 'label.language' => 'Язык',
 'label.decimal_mark' => 'Десятичный знак',
@@ -199,16 +186,15 @@ $i18n_key_words = array(
 'label.ldap_hint' => 'Введите свои <b>Windows логин</b> и <b>пароль</b> в поля ниже.',
 'label.required_fields' => '* - обязательные для заполнения поля',
 'label.on_behalf' => 'от имени',
-'label.role_manager' => '(менеджер)',
-'label.role_comanager' => '(ассистент менеджера)',
-'label.role_admin' => '(администратор)',
 'label.page' => 'Стр',
 'label.condition' => 'Условие',
 'label.yes' => 'да',
 'label.no' => 'нет',
+'label.sort' => 'Сортировать',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 'label.custom_fields' => 'Дополнительные поля',
 'label.monthly_quotas' => 'Месячные квоты',
+'label.entity' => 'Сущность',
 'label.type' => 'Тип',
 'label.type_dropdown' => 'комбо',
 'label.type_text' => 'текст',
@@ -223,17 +209,37 @@ $i18n_key_words = array(
 'label.mark_paid' => 'Отметить оплату',
 'label.week_note' => 'Комментарий недели',
 'label.week_list' => 'Список недели',
+'label.weekends' => 'Выходные',
 'label.work_units' => 'Единицы работы',
 'label.work_units_short' => 'Единицы',
 'label.totals_only' => 'Только итоги',
 'label.quota' => 'Квота',
+'label.timesheet' => 'Табель учёта',
+'label.submitted' => 'Подано',
+'label.approved' => 'Одобрено',
+'label.approval' => 'Одобрение отчётов',
+'label.mark_approved' => 'Отметить одобрение',
+'label.template' => 'Шаблон',
+'label.bind_templates_with_projects' => 'Связать шаблоны с проектами',
+'label.prepopulate_note' => 'Подставлять шаблон в поле',
+'label.attachments' => 'Приложения',
+'label.files' => 'Файлы',
+'label.file' => 'Файл',
+'label.active_users' => 'Активные пользователи',
+'label.inactive_users' => 'Неактивные пользователи',
+
+// Entity names. We use lower case (in English) because they are used in dropdowns, too.
+// They are used to associate a custom field with an entity type.
+'entity.time' => 'время',
+'entity.user' => 'пользователь',
+'entity.project' => 'проект',
 
 // Form titles.
 'title.error' => 'Ошибка',
 'title.success' => 'Успех',
 'title.login' => 'Вход в систему',
+'title.2fa' => 'Двухфакторная аутентификация',
 'title.groups' => 'Группы',
-'title.subgroups' => 'Подгруппы',
 'title.add_group' => 'Добавление группы',
 'title.edit_group' => 'Редактирование группы',
 'title.delete_group' => 'Удаление группы',
@@ -242,9 +248,12 @@ $i18n_key_words = array(
 'title.time' => 'Время',
 'title.edit_time_record' => 'Редактирование записи о времени',
 'title.delete_time_record' => 'Удаление записи о времени',
+'title.time_files' => 'Файлы записи о времени',
+'title.puncher' => 'Пробиватель',
 'title.expenses' => 'Расходы',
 'title.edit_expense' => 'Редактирование предмета расхода',
 'title.delete_expense' => 'Удаление предмета расхода',
+'title.expense_files' => 'Файлы предмета расхода',
 'title.predefined_expenses' => 'Предопределенные расходы',
 'title.add_predefined_expense' => 'Добавление предопределенного расхода',
 'title.edit_predefined_expense' => 'Редактирование предопределенного расхода',
@@ -252,10 +261,14 @@ $i18n_key_words = array(
 'title.reports' => 'Отчёты',
 'title.report' => 'Отчёт',
 'title.send_report' => 'Отсылка отчёта',
+'title.timesheets' => 'Табели учёта',
+'title.timesheet' => 'Табель учёта',
+'title.timesheet_files' => 'Файлы табеля учёта',
 'title.invoice' => 'Счёт',
 'title.send_invoice' => 'Отсылка счёта',
 'title.charts' => 'Диаграммы',
 'title.projects' => 'Проекты',
+'title.project_files' => 'Файлы проекта',
 'title.add_project' => 'Добавление проекта',
 'title.edit_project' => 'Редактирование проекта',
 'title.delete_project' => 'Удаление проекта',
@@ -283,10 +296,14 @@ $i18n_key_words = array(
 'title.add_notification' => 'Добавление уведомления',
 'title.edit_notification' => 'Редактирование уведомления',
 'title.delete_notification' => 'Удаление уведомления',
+'title.add_timesheet' => 'Добавление табеля',
+'title.edit_timesheet' => 'Редактирование табеля',
+'title.delete_timesheet' => 'Удаление табеля',
 'title.monthly_quotas' => 'Месячные квоты',
 'title.export' => 'Экспортирование данных группы',
 'title.import' => 'Импортирование данных группы',
 'title.options' => 'Опции',
+'title.display_options' => 'Опции отображения',
 'title.profile' => 'Профиль',
 'title.plugins' => 'Плагины',
 'title.cf_custom_fields' => 'Дополнительные поля',
@@ -301,6 +318,13 @@ $i18n_key_words = array(
 'title.week_view' => 'Неделя',
 'title.swap_roles' => 'Обмен ролей',
 'title.work_units' => 'Единицы работы',
+'title.templates' => 'Шаблоны',
+'title.add_template' => 'Добавление шаблона',
+'title.edit_template' => 'Редактирование шаблона',
+'title.delete_template' => 'Удаление шаблона',
+'title.edit_file' => 'Редактирование файла',
+'title.delete_file' => 'Удаление файла',
+'title.download_file' => 'Скачивание файла',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -324,12 +348,17 @@ $i18n_key_words = array(
 'dropdown.clients' => 'клиенты',
 'dropdown.select' => '--- выберите ---',
 'dropdown.select_invoice' => '--- выберите счёт ---',
+'dropdown.select_timesheet' => '--- выберите табель ---',
 'dropdown.status_active' => 'активный',
 'dropdown.status_inactive' => 'неактивный',
 'dropdown.delete' => 'удалить',
 'dropdown.do_not_delete' => 'не удалять',
+'dropdown.approved' => 'одобрено',
+'dropdown.not_approved' => 'не одобрено',
 'dropdown.paid' => 'оплачено',
 'dropdown.not_paid' => 'не оплачено',
+'dropdown.ascending' => 'возрастает',
+'dropdown.descending' => 'убывает',
 
 // Below is a section for strings that are used on individual forms. When a string is used only on one form it should be placed here.
 // One exception is for closely related forms such as "Time" and "Editing Time Record" with similar controls. In such cases
@@ -338,12 +367,20 @@ $i18n_key_words = array(
 
 // Login form. See example at https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'Забыли пароль?',
-'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> - это открытая (open source), простая и лёгкая в использовании система трекинга рабочего времени.',
+'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> - это открытая (open source) система трекинга рабочего времени.',
+
+// Email subject and body for two-factor authentication.
+'email.2fa_code.subject' => 'Anuko Time Tracker код для двухфакторной аутентификации',
+'email.2fa_code.body' => "Уважаемый пользователь,\n\nВаш код для двухфакторной аутентификации:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+'form.2fa.hint' => 'Проверьте электронную почту и введите высланный вам 2FA код здесь.',
+'form.2fa.2fa_code' => '2FA код',
 
 // Resetting Password form. See example at https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => 'Запрос на сброс пароля отослан по e-mail.',
 'form.reset_password.email_subject' => 'Сброс пароля к Anuko Time Tracker',
-'form.reset_password.email_body' => "Уважаемый пользователь,\n\nКто-то c IP %s попросил сбросить ваш пароль к системе Anuko Time Tracker. Пройдите по данной ссылке для сброса пароля.\n\n%s\n\nAnuko Time Tracker - это открытая (open source), простая и лёгкая в использовании система трекинга рабочего времени. Подробности - на сайте https://www.anuko.com.",
+'form.reset_password.email_body' => "Уважаемый пользователь,\n\nКто-то c IP %s попросил сбросить ваш пароль к системе Anuko Time Tracker. Пройдите по данной ссылке для сброса пароля.\n\n%s\n\nAnuko Time Tracker - это открытая (open source) система трекинга рабочего времени. Подробности - на сайте https://www.anuko.com.",
 
 // Changing Password form. See example at https://timetracker.anuko.com/password_change.php?ref=1.
 'form.change_password.tip' => 'Впечатайте новый пароль и нажмите Cохранить.',
@@ -370,9 +407,14 @@ $i18n_key_words = array(
 'form.reports.include_not_billable' => 'не включаемые в счёт',
 'form.reports.include_invoiced' => 'внесённые в счёт',
 'form.reports.include_not_invoiced' => 'не внесённые в счёт',
+'form.reports.include_assigned' => 'присвоена',
+'form.reports.include_not_assigned' => 'не присвоена',
+'form.reports.include_pending' => 'в ожидании',
 'form.reports.select_period' => 'Выберите интервал времени',
 'form.reports.set_period' => 'или укажите даты',
 'form.reports.show_fields' => 'Показывать поля',
+'form.reports.time_fields' => 'Поля времени',
+'form.reports.user_fields' => 'Поля пользователя',
 'form.reports.group_by' => 'Группировать по',
 'form.reports.group_by_no' => '--- без группировки ---',
 'form.reports.group_by_date' => 'дате',
@@ -385,9 +427,18 @@ $i18n_key_words = array(
 // (after generating a report at https://timetracker.anuko.com/reports.php).
 'form.report.export' => 'Экспортировать',
 'form.report.assign_to_invoice' => 'Включить в счёт',
+'form.report.assign_to_timesheet' => 'Включить в табель',
 
-// Invoice form. See example at https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+'form.timesheets.active_timesheets' => 'Активные табели',
+'form.timesheets.inactive_timesheets' => 'Неактивные табели',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+'form.templates.active_templates' => 'Активные шаблоны',
+'form.templates.inactive_templates' => 'Неактивные шаблоны',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => 'Номер счёта',
 'form.invoice.person' => 'Работник',
 
@@ -409,8 +460,7 @@ $i18n_key_words = array(
 'form.tasks.inactive_tasks' => 'Неактивные задачи',
 
 // Users form. See example at https://timetracker.anuko.com/users.php
-'form.users.active_users' => 'Активные пользователи',
-'form.users.inactive_users' => 'Неактивные пользователи',
+'form.users.uncompleted_entry_today' => 'Пользователь имеет неоконченную запись сегодня',
 'form.users.uncompleted_entry' => 'Пользователь имеет неоконченную запись',
 'form.users.role' => 'Роль',
 'form.users.manager' => 'Менеджер',
@@ -454,7 +504,8 @@ $i18n_key_words = array(
 // Group Settings form. See example at https://timetracker.anuko.com/group_edit.php.
 'form.group_edit.12_hours' => '12 часов',
 'form.group_edit.24_hours' => '24 часа',
-'form.group_edit.show_holidays' => 'Показывать праздники',
+'form.group_edit.display_options' => 'Опции отображения',
+'form.group_edit.holidays' => 'Праздники',
 'form.group_edit.tracking_mode' => 'Режим работы',
 'form.group_edit.mode_time' => 'время',
 'form.group_edit.mode_projects' => 'проекты',
@@ -464,20 +515,25 @@ $i18n_key_words = array(
 'form.group_edit.type_start_finish' => 'начало и конец',
 'form.group_edit.type_duration' => 'длительность',
 'form.group_edit.punch_mode' => 'Пробивать время',
+'form.group_edit.one_uncompleted' => 'Одна незавершённая',
 'form.group_edit.allow_overlap' => 'Возможное перекрывание',
 'form.group_edit.future_entries' => 'Будущие записи',
 'form.group_edit.uncompleted_indicators' => 'Индикаторы незавершения',
 'form.group_edit.confirm_save' => 'Предупреждать при сохранении',
-'form.group_edit.allow_ip' => 'Разрешить доступ с IP',
+'form.group_edit.advanced_settings' => 'Продвинутые настройки',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+'form.group_advanced_edit.allow_ip' => 'Разрешить доступ с IP',
+'form.group_advanced_edit.password_complexity' => 'Сложность пароля',
+'form.group_advanced_edit.2fa' => 'Двухфакторная аутентификация',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 'form.group_delete.hint' => 'Вы уверены, что хотите удалить всю группу?',
 
 // Mail form. See example at https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'От',
 'form.mail.to' => 'Кому',
 'form.mail.report_subject' => 'Time Tracker отчёт',
-'form.mail.footer' => 'Anuko Time Tracker - это открытая (open source), простая и лёгкая в использовании система трекинга рабочего времени. Подробности на сайте <a href="https://www.anuko.com">www.anuko.com</a>.',
+'form.mail.footer' => 'Anuko Time Tracker - это открытая (open source) система трекинга рабочего времени. Подробности на сайте <a href="https://www.anuko.com">www.anuko.com</a>.',
 'form.mail.report_sent' => 'Отчёт отправлен.',
 'form.mail.invoice_sent' => 'Счёт отправлен.',
 
@@ -501,7 +557,7 @@ $i18n_key_words = array(
 'role.user.description' => 'Обычный член группы, не имеющий прав управления.',
 'role.client.label' => 'Клиент',
 'role.client.low_case_label' => 'клиент',
-'role.client.description' => 'Клиент может смотреть свои отчёты, диаграммы и счета.',
+'role.client.description' => 'Клиент может смотреть свои данные.',
 'role.supervisor.label' => 'Руководитель',
 'role.supervisor.low_case_label' => 'руководитель',
 'role.supervisor.description' => 'Член группы, имеющий небольшие полномочия по управлению.',
@@ -517,4 +573,18 @@ $i18n_key_words = array(
 'role.admin.label' => 'Администратор',
 'role.admin.low_case_label' => 'администратор',
 'role.admin.description' => 'Администратор сайта.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+'form.timesheet_view.submit_subject' => 'Запрос на одобрение табеля',
+'form.timesheet_view.submit_body' => "Появился новый табель для одобрения.<p>Пользователь: %s.",
+'form.timesheet_view.approve_subject' => 'Табель одобрен',
+'form.timesheet_view.approve_body' => "Ваш табель %s одобрен.<p>%s",
+'form.timesheet_view.disapprove_subject' => 'Табель не одобрен',
+'form.timesheet_view.disapprove_body' => "Ваш табель %s не одобрен.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+'form.display_options.note_on_separate_row' => 'Комментарий в отдельном ряду',
+'form.display_options.not_complete_days' => 'Незавершенные дни',
+'form.display_options.inactive_projects' => 'Неактивные проекты',
+'form.display_options.custom_css' => 'Пользовательская CSS',
 );

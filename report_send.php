@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -52,10 +28,10 @@ if ($request->isPost()) {
 }
 
 $form = new Form('mailForm');
-$form->addInput(array('type'=>'text','name'=>'receiver','style'=>'width: 300px;','value'=>$cl_receiver));
-$form->addInput(array('type'=>'text','name'=>'cc','style'=>'width: 300px;','value'=>$cl_cc));
-$form->addInput(array('type'=>'text','name'=>'subject','style'=>'width: 300px;','value'=>$cl_subject));
-$form->addInput(array('type'=>'textarea','name'=>'comment','maxlength'=>'250','style'=>'width: 300px; height: 60px;'));
+$form->addInput(array('type'=>'text','name'=>'receiver','value'=>$cl_receiver));
+$form->addInput(array('type'=>'text','name'=>'cc','value'=>$cl_cc));
+$form->addInput(array('type'=>'text','name'=>'subject','value'=>$cl_subject));
+$form->addInput(array('type'=>'textarea','name'=>'comment','maxlength'=>'250'));
 $form->addInput(array('type'=>'submit','name'=>'btn_send','value'=>$i18n->get('button.send')));
 
 if ($request->isPost()) {
@@ -92,16 +68,6 @@ if ($request->isPost()) {
       $msg->add($i18n->get('form.mail.report_sent'));
     else
       $err->add($i18n->get('error.mail_send'));
-  }
-}
-
-$smarty->assign('sender', SENDER);
-if (function_exists('imap_mime_header_decode')) {
-  $elements = imap_mime_header_decode(SENDER);
-  if (count($elements) > 1) {
-      // Reassign sender.
-      $new = $elements[count($elements) - 2]->text;
-      $smarty->assign('sender', $elements[count($elements) - 2]->text);
   }
 }
 

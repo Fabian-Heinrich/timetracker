@@ -1,41 +1,44 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
 {$forms.clientForm.open}
-<table cellspacing="4" cellpadding="7" border="0">
+<table class="centered-table">
+  <tr class = "small-screen-label"><td><label for="name">{$i18n.label.client_name} (*):</label></td></tr>
   <tr>
-    <td>
-      <table cellspacing="1" cellpadding="2" border="0">
-        <tr>
-          <td align="right">{$i18n.label.client_name} (*):</td>
-          <td>{$forms.clientForm.name.control}</td>
-        </tr>
-        <tr>
-          <td align="right">{$i18n.label.client_number}:</td>
-          <td>{$forms.clientForm.number.control}</td>
-        </tr>
-        <tr>
-          <td align="right">{$i18n.label.client_address}:</td>
-          <td>{$forms.clientForm.address.control}</td>
-        </tr>
-        <tr>
-          <td align="right">{$i18n.label.tax}, %:</td>
-          <td>{$forms.clientForm.tax.control}&nbsp;(0{$user->getDecimalMark()}00)</td>
-        </tr>
-        <tr>
-          <td height="40"></td>
-          <td>{$i18n.label.required_fields}</td>
-        </tr>
-        <tr><td>&nbsp;</td></tr>
-{if $show_projects}
-        <tr>
-          <td align="right">{$i18n.label.projects}:</td>
-          <td>{$forms.clientForm.projects.control}</td>
-        </tr>
-        <tr><td>&nbsp;</td></tr>
-{/if}
-        <tr>
-          <td colspan="2" align="center" height="50">{$forms.clientForm.btn_submit.control}</td>
-        </tr>
-      </table>
-    </td>
+    <td class="large-screen-label"><label for="name">{$i18n.label.client_name} (*):</label></td>
+    <td class="td-with-input">{$forms.clientForm.name.control}</td>
   </tr>
+  <tr>
+    <td class="large-screen-label"><label for="number">{$i18n.label.client_number} (*):</label></td>
+    <td class="td-with-input">{$forms.clientForm.number.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="address">{$i18n.label.client_address}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="address">{$i18n.label.client_address}:</label></td>
+    <td class="td-with-input">{$forms.clientForm.address.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="tax">{$i18n.label.tax}, %:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="tax">{$i18n.label.tax}, %:</label></td>
+    <td class="td-with-input">{$forms.clientForm.tax.control}&nbsp;(0{$user->getDecimalMark()}00)</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr><td colspan="2">{$i18n.label.required_fields}</td></tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{if $show_projects}
+  <tr><td><div class="form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td>{$i18n.label.projects}:</td></tr>
+  <tr>
+    <td class="large-screen-label">{$i18n.label.projects}:</td>
+    <td class="td-with-checkboxes">{$forms.clientForm.projects.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+  <tr>
+    <td colspan="2">{$forms.clientForm.btn_submit.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
 </table>
 {$forms.clientForm.close}

@@ -1,45 +1,21 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
 import('form.ActionForm');
-import('DateAndTime');
 import('ttGroupHelper');
-import('Period');
 import('ttProjectHelper');
 import('ttFavReportHelper');
 import('ttClientHelper');
 import('ttReportHelper');
+import('ttDate');
+import('ttPeriod');
 
 
 // Access check.
-if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports') || ttAccessAllowed('view_all_reports'))) {
+if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports') || ttAccessAllowed('view_all_reports') || ttAccessAllowed('view_client_reports'))) {
   header('Location: access_denied.php');
   exit();
 }
@@ -65,7 +41,6 @@ $report_list = ttFavReportHelper::getReports();
 $form->addInput(array('type'=>'combobox',
   'name'=>'favorite_report',
   'onchange'=>'this.form.fav_report_changed.value=1;this.form.submit();',
-  'style'=>'width: 250px;',
   'data'=>$report_list,
   'datakeys'=>array('id','name'),
   'empty'=>array('-1'=>$i18n->get('dropdown.no'))));
@@ -75,100 +50,151 @@ $form->addInput(array('type'=>'submit','name'=>'btn_generate','value'=>$i18n->ge
 $form->addInput(array('type'=>'submit','name'=>'btn_delete','value'=>$i18n->get('label.delete'),'onclick'=>"return confirm('".$i18n->get('form.reports.confirm_delete')."')"));
 
 // Dropdown for clients if the clients plugin is enabled.
-if ($user->isPluginEnabled('cl') && !$user->isClient()) {
+$showClient = $user->isPluginEnabled('cl') && !$user->isClient();
+$client_list = array();
+if ($showClient) {
   if ($user->can('view_reports') || $user->can('view_all_reports')) {
     $client_list = ttClientHelper::getClients(); // TODO: improve getClients for "view_reports"
                                                  // by filtering out not relevant clients.
   } else
     $client_list = ttClientHelper::getClientsForUser();
+  if (count($client_list) == 0) $showClient = false;
+}
+if ($showClient) {
   $form->addInput(array('type'=>'combobox',
+    'onchange'=>'fillProjectDropdown(this.value);',
     'name'=>'client',
-    'style'=>'width: 250px;',
     'data'=>$client_list,
     'datakeys'=>array('id', 'name'),
     'empty'=>array(''=>$i18n->get('dropdown.all'))));
 }
 
-// If we have a TYPE_DROPDOWN custom field - add control to select an option.
-if ($custom_fields && $custom_fields->fields[0] && $custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN) {
-    $form->addInput(array('type'=>'combobox','name'=>'option',
-      'style'=>'width: 250px;',
-      'value'=>$cl_cf_1,
-      'data'=>$custom_fields->options,
-      'empty'=>array(''=>$i18n->get('dropdown.all'))));
+// Add project dropdown.
+$showProject = MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode;
+$project_list = array();
+if ($showProject) {
+  if ($user->can('view_reports') || $user->can('view_all_reports')) {
+    $config = new ttConfigHelper($user->getConfig());
+    $includeInactiveProjects = $config->getDefinedValue('report_inactive_projects');
+    $project_list = ttProjectHelper::getProjects($includeInactiveProjects);
+  } elseif ($user->isClient()) {
+    $project_list = ttProjectHelper::getProjectsForClient();
+  } else {
+    $project_list = ttProjectHelper::getAssignedProjects($user->getUser());
+  }
+  if (count($project_list) == 0) $showProject = false;
+}
+if ($showProject) {
+  $form->addInput(array('type'=>'combobox',
+    'onchange'=>'fillTaskDropdown(this.value);selectAssignedUsers(this.value);',
+    'name'=>'project',
+    'data'=>$project_list,
+    'datakeys'=>array('id','name'),
+    'empty'=>array(''=>$i18n->get('dropdown.all'))));
 }
 
-// Add controls for projects and tasks.
-if ($user->can('view_reports') || $user->can('view_all_reports')) {
-  $project_list = ttProjectHelper::getProjects(); // All active and inactive projects.
-} elseif ($user->isClient()) {
-  $project_list = ttProjectHelper::getProjectsForClient();
-} else {
-  $project_list = ttProjectHelper::getAssignedProjects($user->getUser());
-}
-$form->addInput(array('type'=>'combobox',
-  'onchange'=>'fillTaskDropdown(this.value);selectAssignedUsers(this.value);',
-  'name'=>'project',
-  'style'=>'width: 250px;',
-  'data'=>$project_list,
-  'datakeys'=>array('id','name'),
-  'empty'=>array(''=>$i18n->get('dropdown.all'))));
-if (MODE_PROJECTS_AND_TASKS == $trackingMode) {
+// Add task dropdown.
+$showTask = MODE_PROJECTS_AND_TASKS == $trackingMode;
+$task_list = array();
+if ($showTask) {
   $task_list = ttGroupHelper::getActiveTasks();
+  if (count($task_list) == 0) $showTask = false;
+}
+if ($showTask) {
   $form->addInput(array('type'=>'combobox',
     'name'=>'task',
-    'style'=>'width: 250px;',
     'data'=>$task_list,
     'datakeys'=>array('id','name'),
     'empty'=>array(''=>$i18n->get('dropdown.all'))));
 }
 
-// Add include records control.
-$include_options = array('1'=>$i18n->get('form.reports.include_billable'),
-  '2'=>$i18n->get('form.reports.include_not_billable'));
-$form->addInput(array('type'=>'combobox',
-  'name'=>'include_records',
-  'style'=>'width: 250px;',
-  'data'=>$include_options,
-  'empty'=>array(''=>$i18n->get('dropdown.all'))));
+// Add billable dropdown.
+$showBillable = $user->isPluginEnabled('iv');
+if ($showBillable) {
+  $include_options = array('1'=>$i18n->get('form.reports.include_billable'),
+    '2'=>$i18n->get('form.reports.include_not_billable'));
+  $form->addInput(array('type'=>'combobox',
+    'name'=>'include_records', // TODO: how about a better name here?
+    'data'=>$include_options,
+    'empty'=>array(''=>$i18n->get('dropdown.all'))));
+}
 
 // Add invoiced / not invoiced selector.
-if ($user->can('manage_invoices')) {
+$showInvoiceDropdown = $user->isPluginEnabled('iv') && $user->can('manage_invoices');
+if ($showInvoiceDropdown) {
   $invoice_options = array('1'=>$i18n->get('form.reports.include_invoiced'),
     '2'=>$i18n->get('form.reports.include_not_invoiced'));
   $form->addInput(array('type'=>'combobox',
     'name'=>'invoice',
-    'style'=>'width: 250px;',
     'data'=>$invoice_options,
     'empty'=>array(''=>$i18n->get('dropdown.all'))));
 }
+$showInvoiceCheckbox = $user->isPluginEnabled('iv') && ($user->can('manage_invoices') || $user->isClient());
 
-if ($user->can('manage_invoices') && $user->isPluginEnabled('ps')) {
+// Add paid status selector.
+$showPaidStatus = $user->isPluginEnabled('ps') && $user->can('manage_invoices');
+if ($showPaidStatus) {
   $form->addInput(array('type'=>'combobox',
    'name'=>'paid_status',
-   'style'=>'width: 250px;',
    'data'=>array('1'=>$i18n->get('dropdown.paid'),'2'=>$i18n->get('dropdown.not_paid')),
    'empty'=>array(''=>$i18n->get('dropdown.all'))
  ));
 }
 
-$user_list = array();
-if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) {
+// Add approved / not approved selector.
+$showApproved = $user->isPluginEnabled('ap') &&
+  ($user->can('view_own_reports') || $user->can('view_reports') ||
+   $user->can('view_all_reports') || ($user->can('view_client_reports') && $user->can('view_client_unapproved')));
+if ($showApproved) {
+  $form->addInput(array('type'=>'combobox',
+   'name'=>'approved',
+   'data'=>array('1'=>$i18n->get('dropdown.approved'),'2'=>$i18n->get('dropdown.not_approved')),
+   'empty'=>array(''=>$i18n->get('dropdown.all'))
+  ));
+}
+
+// Add timesheet assignment selector.
+$showTimesheetDropdown = $user->isPluginEnabled('ts');
+if ($showTimesheetDropdown) {
+  $form->addInput(array('type'=>'combobox',
+   'name'=>'timesheet',
+   'data'=>array(TIMESHEET_NOT_ASSIGNED=>$i18n->get('form.reports.include_not_assigned'),
+     TIMESHEET_ASSIGNED=>$i18n->get('form.reports.include_assigned'),
+     TIMESHEET_PENDING=>$i18n->get('form.reports.include_pending'),
+     TIMESHEET_APPROVED=>$i18n->get('dropdown.approved'),
+     TIMESHEET_NOT_APPROVED=>$i18n->get('dropdown.not_approved')),
+   'empty'=>array(''=>$i18n->get('dropdown.all'))
+  ));
+}
+$showTimesheetCheckbox = $user->isPluginEnabled('ts');
+
+// Add user table.
+$showUsers = $user->can('view_reports') || $user->can('view_all_reports') || $user->isClient();
+$user_list = $user_list_active = $user_list_inactive = array();
+if ($showUsers) {
   // Prepare user and assigned projects arrays.
   if ($user->can('view_reports') || $user->can('view_all_reports')) {
     $rank = $user->getMaxRankForGroup($user->getGroup());
     if ($user->can('view_all_reports')) $max_rank = MAX_RANK;
-    if ($user->can('view_own_reports'))
-      $options = array('max_rank'=>$max_rank,'include_self'=>true);
-    else
-      $options = array('max_rank'=>$max_rank);
-    $users = $user->getUsers($options); // Active and inactive users.
+    if ($user->can('view_own_reports')) {
+      $options_active = array('max_rank'=>$max_rank,'include_self'=>true,'status'=>ACTIVE);
+      $options_inactive = array('max_rank'=>$max_rank,'include_self'=>true,'status'=>INACTIVE);
+    } else {
+      $options_active = array('max_rank'=>$max_rank,'status'=>ACTIVE);
+      $options_inactive = array('max_rank'=>$max_rank,'status'=>INACTIVE);
+    }
+    $active_users = $user->getUsers($options_active);
+    $inactive_users = $user->getUsers($options_inactive);
   }
-  elseif ($user->isClient())
-    $users = ttGroupHelper::getUsersForClient(); // Active and inactive users for clients.
+  elseif ($user->isClient()) {
+    $options_active = array('status'=>ACTIVE);
+    $options_inactive = array('status'=>INACTIVE);
+    $active_users = ttGroupHelper::getUsersForClient($options_active);
+    $inactive_users = ttGroupHelper::getUsersForClient($options_inactive);
+  }
 
-  foreach ($users as $single_user) {
-    $user_list[$single_user['id']] = $single_user['name'];
+  foreach ($active_users as $single_user) {
+    $user_list_active[$single_user['id']] = $single_user['name'];
     $projects = ttProjectHelper::getAssignedProjects($single_user['id']);
     if ($projects) {
       foreach ($projects as $single_project) {
@@ -176,19 +202,33 @@ if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isCli
       }
     }
   }
-  $row_count = ceil(count($user_list)/3);
+  $row_count = is_array($user_list_active) ? ceil(count($user_list_active)/3) : 1;
   $form->addInput(array('type'=>'checkboxgroup',
-    'name'=>'users',
-    'data'=>$user_list,
+    'name'=>'users_active',
+    'data'=>$user_list_active,
     'layout'=>'V',
-    'groupin'=>$row_count,
-    'style'=>'width: 100%;'));
+    'groupin'=>$row_count));
+
+  foreach ($inactive_users as $single_user) {
+    $user_list_inactive[$single_user['id']] = $single_user['name'];
+    $projects = ttProjectHelper::getAssignedProjects($single_user['id']);
+    if ($projects) {
+      foreach ($projects as $single_project) {
+        $assigned_projects[$single_user['id']][] = $single_project['id'];
+      }
+    }
+  }
+  $row_count = ceil(count($user_list_inactive)/3);
+  $form->addInput(array('type'=>'checkboxgroup',
+    'name'=>'users_inactive',
+    'data'=>$user_list_inactive,
+    'layout'=>'V',
+    'groupin'=>$row_count));
 }
 
 // Add control for time period.
 $form->addInput(array('type'=>'combobox',
   'name'=>'period',
-  'style'=>'width: 250px;',
   'data'=>array(INTERVAL_THIS_MONTH=>$i18n->get('dropdown.current_month'),
     INTERVAL_LAST_MONTH=>$i18n->get('dropdown.previous_month'),
     INTERVAL_THIS_WEEK=>$i18n->get('dropdown.current_week'),
@@ -200,35 +240,82 @@ $form->addInput(array('type'=>'combobox',
 $form->addInput(array('type'=>'datefield','maxlength'=>'20','name'=>'start_date'));
 $form->addInput(array('type'=>'datefield','maxlength'=>'20','name'=>'end_date'));
 
-// Add checkboxes for fields.
-if ($user->isPluginEnabled('cl')){
+// Add checkboxes for "Show fields" block.
+if ($showClient){
   $form->addInput(array('type'=>'checkbox','name'=>'chclient'));
   $form->addInput(array('type'=>'checkbox','name'=>'chclientnumber'));
 }
-if (($user->can('manage_invoices') || $user->isClient()) && $user->isPluginEnabled('iv')){
+if ($showProject)
+  $form->addInput(array('type'=>'checkbox','name'=>'chproject'));
+if ($showTask)
+  $form->addInput(array('type'=>'checkbox','name'=>'chtask'));
+if ($showInvoiceCheckbox){
   $form->addInput(array('type'=>'checkbox','name'=>'chinvoice'));
   $form->addInput(array('type'=>'checkbox','name'=>'chbillable'));
 }
-if ($user->can('manage_invoices') && $user->isPluginEnabled('ps'))
+if ($showPaidStatus)
   $form->addInput(array('type'=>'checkbox','name'=>'chpaid'));
-if ($user->can('view_reports') || $user->can('view_all_reports'))
+$showIP = $user->can('view_reports') || $user->can('view_all_reports');
+if ($showIP)
   $form->addInput(array('type'=>'checkbox','name'=>'chip'));
-if (MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode)
-  $form->addInput(array('type'=>'checkbox','name'=>'chproject'));
-if (MODE_PROJECTS_AND_TASKS == $trackingMode)
-  $form->addInput(array('type'=>'checkbox','name'=>'chtask'));
-if ((TYPE_START_FINISH == $user->getRecordType()) || (TYPE_ALL == $user->getRecordType())) {
+$recordType = $user->getRecordType();
+$showStart = TYPE_START_FINISH == $recordType || TYPE_ALL == $recordType;
+$showFinish = $showStart;
+if ($showStart)
   $form->addInput(array('type'=>'checkbox','name'=>'chstart'));
+if ($showFinish)
   $form->addInput(array('type'=>'checkbox','name'=>'chfinish'));
-}
 $form->addInput(array('type'=>'checkbox','name'=>'chduration'));
 $form->addInput(array('type'=>'checkbox','name'=>'chnote'));
 $form->addInput(array('type'=>'checkbox','name'=>'chcost'));
-// If we have a custom field - add a checkbox for it.
-if ($custom_fields && $custom_fields->fields[0])
-  $form->addInput(array('type'=>'checkbox','name'=>'chcf_1'));
-if ($user->isPluginEnabled('wu'))
+$showWorkUnits = $user->isPluginEnabled('wu');
+if ($showWorkUnits)
   $form->addInput(array('type'=>'checkbox','name'=>'chunits'));
+if ($showTimesheetCheckbox)
+  $form->addInput(array('type'=>'checkbox','name'=>'chtimesheet'));
+if ($showApproved)
+  $form->addInput(array('type'=>'checkbox','name'=>'chapproved'));
+$showFiles = $user->isPluginEnabled('at');
+if ($showFiles)
+  $form->addInput(array('type'=>'checkbox','name'=>'chfiles'));
+
+// Add a hidden control for timesheet_user_id (who to generate a timesheet for).
+if ($showTimesheetCheckbox)
+  $form->addInput(array('type'=>'hidden','name'=>'timesheet_user_id'));
+
+// If we have time custom fields - add controls for them.
+if (isset($custom_fields) && $custom_fields->timeFields) {
+  foreach ($custom_fields->timeFields as $timeField) {
+    $field_name = 'time_field_'.$timeField['id'];
+    $checkbox_field_name = 'show_'.$field_name;
+    if ($timeField['type'] == CustomFields::TYPE_TEXT) {
+      $form->addInput(array('type'=>'text','name'=>$field_name));
+    } elseif ($timeField['type'] == CustomFields::TYPE_DROPDOWN) {
+      $form->addInput(array('type'=>'combobox','name'=>$field_name,
+      'data'=>CustomFields::getOptions($timeField['id']),
+      'empty'=>array(''=>$i18n->get('dropdown.all'))));
+    }
+    // Also add a checkbox (to print the field or not).
+    $form->addInput(array('type'=>'checkbox','name'=>$checkbox_field_name));
+  }
+}
+
+// If we have user custom fields - add controls for them.
+if (isset($custom_fields) && $custom_fields->userFields) {
+  foreach ($custom_fields->userFields as $userField) {
+    $field_name = 'user_field_'.$userField['id'];
+    $checkbox_field_name = 'show_'.$field_name;
+    if ($userField['type'] == CustomFields::TYPE_TEXT) {
+      $form->addInput(array('type'=>'text','name'=>$field_name,));
+    } elseif ($userField['type'] == CustomFields::TYPE_DROPDOWN) {
+      $form->addInput(array('type'=>'combobox','name'=>$field_name,
+      'data'=>CustomFields::getOptions($userField['id']),
+      'empty'=>array(''=>$i18n->get('dropdown.all'))));
+    }
+    // Also add a checkbox (to print the field or not).
+    $form->addInput(array('type'=>'checkbox','name'=>$checkbox_field_name));
+  }
+}
 
 // Add group by control.
 $group_by_options['no_grouping'] = $i18n->get('form.reports.group_by_no');
@@ -241,8 +328,19 @@ if (MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode)
   $group_by_options['project'] = $i18n->get('form.reports.group_by_project');
 if (MODE_PROJECTS_AND_TASKS == $trackingMode)
   $group_by_options['task'] = $i18n->get('form.reports.group_by_task');
-if ($custom_fields && $custom_fields->fields[0] && $custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN) {
-  $group_by_options['cf_1'] = $custom_fields->fields[0]['label'];
+// If we have time custom fields - add group by options for them.
+if (isset($custom_fields) && $custom_fields->timeFields) {
+  foreach ($custom_fields->timeFields as $timeField) {
+    $field_name = 'time_field_'.$timeField['id'];
+    $group_by_options[$field_name] = $timeField['label'];
+  }
+}
+// If we have user custom fields - add group by options for them.
+if (isset($custom_fields) && $custom_fields->userFields) {
+  foreach ($custom_fields->userFields as $userField) {
+    $field_name = 'user_field_'.$userField['id'];
+    $group_by_options[$field_name] = $userField['label'];
+  }
 }
 $group_by_options_size = sizeof($group_by_options);
 $form->addInput(array('type'=>'combobox','onchange'=>'handleCheckboxes();','name'=>'group_by1','data'=>$group_by_options));
@@ -251,7 +349,7 @@ if ($group_by_options_size > 3) $form->addInput(array('type'=>'combobox','onchan
 $form->addInput(array('type'=>'checkbox','name'=>'chtotalsonly'));
 
 // Add text field for a new favorite report name.
-$form->addInput(array('type'=>'text','name'=>'new_fav_report','maxlength'=>'30','style'=>'width: 250px;'));
+$form->addInput(array('type'=>'text','name'=>'new_fav_report','maxlength'=>'30'));
 // Save button.
 $form->addInput(array('type'=>'submit','name'=>'btn_save','value'=>$i18n->get('button.save')));
 
@@ -263,23 +361,30 @@ $bean = new ActionForm('reportBean', $form, $request);
 
 if ($request->isGet() && !$bean->isSaved()) {
   // No previous form data were found in session. Use the following default values.
-  $form->setValueByElement('users', array_keys($user_list));
-  $period = new Period(INTERVAL_THIS_MONTH, new DateAndTime($user->getDateFormat()));
-  $form->setValueByElement('start_date', $period->getStartDate());
-  $form->setValueByElement('end_date', $period->getEndDate());
+  $form->setValueByElement('users_active', array_keys((array)$user_list_active));
+  $period = new ttPeriod(new ttDate(), INTERVAL_THIS_MONTH);
+  $form->setValueByElement('start_date', $period->getStartDate($user->getDateFormat()));
+  $form->setValueByElement('end_date', $period->getEndDate($user->getDateFormat()));
+
   $form->setValueByElement('chclient', '1');
-  $form->setValueByElement('chinvoice', '0');
-  $form->setValueByElement('chpaid', '0');
-  $form->setValueByElement('chip', '0');
-  $form->setValueByElement('chproject', '1');
   $form->setValueByElement('chstart', '1');
-  $form->setValueByElement('chduration', '1');
-  $form->setValueByElement('chcost', '0');
-  $form->setValueByElement('chtask', '1');
   $form->setValueByElement('chfinish', '1');
+  $form->setValueByElement('chduration', '1');
+
+  $form->setValueByElement('chproject', '1');
+  $form->setValueByElement('chtask', '1');
   $form->setValueByElement('chnote', '1');
-  $form->setValueByElement('chcf_1', '0');
+  $form->setValueByElement('chcost', '0');
+
+  $form->setValueByElement('chtimesheet', '0');
+  $form->setValueByElement('chip', '0');
+  $form->setValueByElement('chapproved', '0');
+  $form->setValueByElement('chpaid', '0');
+
   $form->setValueByElement('chunits', '0');
+  $form->setValueByElement('chinvoice', '0');
+  $form->setValueByElement('chfiles', '1');
+
   $form->setValueByElement('chtotalsonly', '0');
   $form->setValueByElement('chbillable', '0');
   $form->setValueByElement('chclientnumber', '0');
@@ -299,8 +404,10 @@ if ($request->isPost()) {
       ttFavReportHelper::loadReport($bean);
 
       // If user selected no favorite report - mark all user checkboxes (most probable scenario).
-      if ($bean->getAttribute('favorite_report') == -1)
-        $form->setValueByElement('users', array_keys($user_list));
+      if ($bean->getAttribute('favorite_report') == -1) {
+        $form->setValueByElement('users_active', array_keys($user_list_active));
+        $form->setValueByElement('users_inactive', false);
+      }
 
       // Save form data in session for future use.
       $bean->saveBean();
@@ -338,17 +445,18 @@ if ($request->isPost()) {
   } else {
     // Generate button pressed. Check some values.
     if (!$bean->getAttribute('period')) {
-      $start_date = new DateAndTime($user->getDateFormat(), $bean->getAttribute('start_date'));
-
-      if ($start_date->isError() || !$bean->getAttribute('start_date'))
-        $err->add($i18n->get('error.field'), $i18n->get('label.start_date'));
-
-      $end_date = new DateAndTime($user->getDateFormat(), $bean->getAttribute('end_date'));
-      if ($end_date->isError() || !$bean->getAttribute('end_date'))
-        $err->add($i18n->get('error.field'), $i18n->get('label.end_date'));
-
-      if ($start_date->compare($end_date) > 0)
-        $err->add($i18n->get('error.interval'), $i18n->get('label.end_date'), $i18n->get('label.start_date'));
+      // Validate start date.
+      if (!ttValidDate($bean->getAttribute('start_date'))) $err->add($i18n->get('error.field'), $i18n->get('label.start_date'));
+      // Validate end date.
+      if (!ttValidDate($bean->getAttribute('end_date'))) $err->add($i18n->get('error.field'), $i18n->get('label.end_date'));
+      // Make sure that the end date is equal or after the start date.
+      if ($err->no()) {
+        $startDate = new ttDate($bean->getAttribute('start_date'), $user->getDateFormat());
+        $endDate = new ttDate($bean->getAttribute('end_date'), $user->getDateFormat());
+        if ($startDate->compare($endDate) > 0) {
+          $err->add($i18n->get('error.interval'), $i18n->get('label.end_date'), $i18n->get('label.start_date'));
+        }
+      }
     }
     $group_by1 = $bean->getAttribute('group_by1');
     $group_by2 = $bean->getAttribute('group_by2');
@@ -369,11 +477,29 @@ if ($request->isPost()) {
   }
 } // isPost
 
+$smarty->assign('client_list', $client_list);
+$smarty->assign('show_client', $showClient);
+$smarty->assign('show_project', $showProject);
+$smarty->assign('show_task', $showTask);
+$smarty->assign('show_billable', $showBillable);
+$smarty->assign('show_approved', $showApproved);
+$smarty->assign('show_invoice_dropdown', $showInvoiceDropdown);
+$smarty->assign('show_invoice_checkbox', $showInvoiceCheckbox);
+$smarty->assign('show_paid_status', $showPaidStatus);
+$smarty->assign('show_timesheet_dropdown', $showTimesheetDropdown);
+$smarty->assign('show_timesheet_checkbox', $showTimesheetCheckbox);
+$smarty->assign('show_active_users', $showUsers && $active_users);
+$smarty->assign('show_inactive_users', $showUsers && $inactive_users);
+$smarty->assign('show_start', $showStart);
+$smarty->assign('show_finish', $showFinish);
+$smarty->assign('show_work_units', $showWorkUnits);
+$smarty->assign('show_ip', $showIP);
+$smarty->assign('show_files', $showFiles);
 $smarty->assign('project_list', $project_list);
 $smarty->assign('task_list', $task_list);
 $smarty->assign('assigned_projects', $assigned_projects);
 $smarty->assign('forms', array($form->getName()=>$form->toArray()));
-$smarty->assign('onload', 'onLoad="handleCheckboxes()"');
+$smarty->assign('onload', 'onLoad="handleCheckboxes();fillDropdowns()"');
 $smarty->assign('title', $i18n->get('title.reports'));
 $smarty->assign('content_page_name', 'reports.tpl');
 $smarty->display('index.tpl');

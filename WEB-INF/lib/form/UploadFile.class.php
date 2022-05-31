@@ -23,13 +23,14 @@
 // |
 // +----------------------------------------------------------------------+
 // | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
+// | https://www.anuko.com/time-tracker/credits.htm
 // +----------------------------------------------------------------------+
 
 import('form.FormElement');
 	
 class UploadFile extends FormElement {
-    var $mMaxSize		= 100000;	// 100kb // TODO: refactor this.
+
+  var $maxSize = 8388608; // 8MB default max size.
 
   function __construct($name)
   {
@@ -37,21 +38,14 @@ class UploadFile extends FormElement {
     $this->name = $name;
   }
 
-// TODO: refactoring ongoing down from here.
-	function setMaxSize($value)	{ $this->mMaxSize = $value;	}
-	function getMaxSize()	{ return $this->mMaxSize; }
-	
-	function getHtml() {
+  function setMaxSize($value) { $this->maxSize = $value; }
 
-            if ($this->id=="") $this->id = $this->name;
-	    
-		$html = "\n\t<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"".$this->mMaxSize."\"/>";
-		$html .= "\n\t<input";
-		$html .= " name=\"$this->name\" id=\"$this->id\"";
-		
-		$html .= " type=\"file\"";
-		$html .= ">";
+  function getHtml() {
 
-                return $html;
-	}
+    if ($this->id == '') $this->id = $this->name;
+
+    $html = "\n\t<input type=\"hidden\" name=\"MAX_FILE_SIZE\" value=\"$this->maxSize\">";
+    $html .= "\n\t<input type=\"file\" id=\"$this->id\" name=\"$this->name\">";
+    return $html;
+  }
 }

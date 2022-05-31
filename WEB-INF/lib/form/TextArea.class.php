@@ -23,7 +23,7 @@
 // |
 // +----------------------------------------------------------------------+
 // | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
+// | https://www.anuko.com/time-tracker/credits.htm
 // +----------------------------------------------------------------------+
 
 import('form.FormElement');
@@ -47,7 +47,6 @@ class TextArea extends FormElement {
 
 		if ($this->max_length!="") {
 			if ($this->mOnKeyPress) $this->mOnKeyPress .= ";";
-			$this->mOnKeyPress .= "return validateMaxLenght_".$this->name."(this, event);";
 			$html .= " maxlength=\"$this->max_length\"";
 		}
 
@@ -57,7 +56,7 @@ class TextArea extends FormElement {
 		if ($this->mOnKeyPress) {
 			$html .= " onkeypress=\"$this->mOnKeyPress\"";
 		}
-			
+                if(!$this->isEnabled()) $html .= " readonly";
 		$html .= ">".htmlspecialchars($this->getValue())."</textarea>";
 		
 		return $html;

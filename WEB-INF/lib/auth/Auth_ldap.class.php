@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/content/time_tracker/open_source/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // NOTES:
 //
@@ -38,10 +14,6 @@
 // In April 2012, a previously mandatory search for group membership was put in a conditional block (if ($member_of) -
 // when mandatory membership in groups is actually defined in config.php).
 // This made the module work with Sun Directory Server when NO GROUP MEMBERSHIP is specified.
-// Note 1: search is likely to fail with Sun DS if 'member_of' => array()); is used in config.php.
-// Note 2: search is likely to not work properly with OpenLDAP as well because of Windows specific filtering code in there
-// (we are looking for matches for Windows-specific samaccountname property). Search needs to be redone during the next
-// refactoring effort.
 
 
 /**
@@ -96,7 +68,7 @@ class Auth_ldap extends Auth {
 
     $lc = ldap_connect($this->params['server']);
 
-    if (isTrue('AUTH_DEBUG')) {
+    if (isTrue('DEBUG')) {
       echo '<br />';
       echo '$lc='; var_dump($lc); echo '<br />';
       echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
@@ -106,9 +78,19 @@ class Auth_ldap extends Auth {
 
     ldap_set_option($lc, LDAP_OPT_PROTOCOL_VERSION, 3);
     ldap_set_option($lc, LDAP_OPT_REFERRALS, 0);
-    if (isTrue('AUTH_DEBUG')) {
+    if (isTrue('DEBUG')) {
       ldap_set_option($lc, LDAP_OPT_DEBUG_LEVEL, 7);
     }
+    // Additional options for secure ldap.
+    // This insert is based on https://www.anuko.com/forum/viewtopic.php?f=4&t=2091
+    // I can't test it at the moment. If things break please let us know!
+    if (isset($this->params['tls_cacertdir'])) {
+      ldap_set_option(null, LDAP_OPT_X_TLS_CACERTDIR, $this->params['tls_cacertdir']);
+    }
+    if (isset($this->params['tls_cacertfile'])) {
+      ldap_set_option(null, LDAP_OPT_X_TLS_CACERTFILE, $this->params['tls_cacertfile']);
+    }
+    // End of addiitional options for secure ldap.
 
     // We need to handle Windows AD and OpenLDAP differently.
     if ($this->params['type'] == 'ad') {
@@ -119,13 +101,13 @@ class Auth_ldap extends Auth {
         $login .= '@' . $this->params['default_domain'];
       }
 
-      if (isTrue('AUTH_DEBUG')) {
+      if (isTrue('DEBUG')) {
         echo '$login='; var_dump($login); echo '<br />';
       }
 
       $lb = @ldap_bind($lc, $login, $password);
 
-      if (isTrue('AUTH_DEBUG')) {
+      if (isTrue('DEBUG')) {
         echo '$lb='; var_dump($lb); echo '<br />';
         echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
       }
@@ -142,7 +124,7 @@ class Auth_ldap extends Auth {
         $fields = array('memberof');
         $sr = @ldap_search($lc, $this->params['base_dn'], $filter, $fields);
 
-        if (isTrue('AUTH_DEBUG')) {
+        if (isTrue('DEBUG')) {
           echo '$sr='; var_dump($sr); echo '<br />';
           echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
         }
@@ -154,7 +136,7 @@ class Auth_ldap extends Auth {
 
         $entries = @ldap_get_entries($lc, $sr);
 
-        if (isTrue('AUTH_DEBUG')) {
+        if (isTrue('DEBUG')) {
           echo '$entries='; var_dump($entries); echo '<br />';
           echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
         }
@@ -173,7 +155,7 @@ class Auth_ldap extends Auth {
           $groups[] = substr($grp_fields[0], 3);
         }
 
-        if (isTrue('AUTH_DEBUG')) {
+        if (isTrue('DEBUG')) {
           echo '$member_of'; var_dump($member_of); echo '<br />';
         };
 
@@ -193,21 +175,22 @@ class Auth_ldap extends Auth {
     if ($this->params['type'] == 'openldap') {
 
       // Assuming OpenLDAP server.
-      $login_oldap = 'uid='.$login.','.$this->params['base_dn'];
 
-      if (isTrue('AUTH_DEBUG')) {
-        echo '$login_oldap='; var_dump($login_oldap); echo '<br />';
+      if (empty($this->params['user_login_attribute'])) {
+        $user_login_attribute = 'uid';
+      } else {
+        $user_login_attribute = $this->params['user_login_attribute'];
       }
 
-      // check if the user specified full login
-      if (strpos($login, '@') === false) {
-        // append default domain
-        $login .= '@' . $this->params['default_domain'];
+      $login_oldap = $user_login_attribute.'='.Auth_ldap::ldap_escape($login).','.$this->params['base_dn'];
+
+      if (isTrue('DEBUG')) {
+        echo '$login_oldap='; var_dump($login_oldap); echo '<br />';
       }
 
       $lb = @ldap_bind($lc, $login_oldap, $password);
 
-      if (isTrue('AUTH_DEBUG')) {
+      if (isTrue('DEBUG')) {
         echo '$lb='; var_dump($lb); echo '<br />';
         echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
       }
@@ -218,14 +201,18 @@ class Auth_ldap extends Auth {
       }
 
       if ($member_of) {
-        // TODO: Fix this for OpenLDAP, as samaccountname has nothing to do with it.
-        // get groups
 
-        $filter = 'samaccountname='.Auth_ldap::ldap_escape($login_oldap);
-        $fields = array('samaccountname', 'mail', 'memberof', 'department', 'displayname', 'telephonenumber', 'primarygroupid');
+        if (isTrue('DEBUG')) {
+          echo '$member_of : '; var_dump($member_of); echo '<br />';
+        }
+
+        $filter = $user_login_attribute.'='.Auth_ldap::ldap_escape($login); 	// ldap search filter
+        $fields = array('memberof');                                            // ldap search attributes
         $sr = @ldap_search($lc, $this->params['base_dn'], $filter, $fields);
 
-        if (isTrue('AUTH_DEBUG')) {
+        if (isTrue('DEBUG')) {
+          echo '$filter='; var_dump($filter); echo '<br />';
+          echo '$fields='; var_dump($fields); echo '<br />';
           echo '$sr='; var_dump($sr); echo '<br />';
           echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
         }
@@ -238,7 +225,7 @@ class Auth_ldap extends Auth {
 
         $entries = @ldap_get_entries($lc, $sr);
 
-        if (isTrue('AUTH_DEBUG')) {
+        if (isTrue('DEBUG')) {
           echo '$entries='; var_dump($entries); echo '<br />';
           echo 'ldap_error()='; echo ldap_error($lc); echo '<br />';
         }
@@ -248,30 +235,38 @@ class Auth_ldap extends Auth {
           return false;
         }
 
-        $groups = array();
+        $groups = array(); // existing ldap group memberships
 
-        // extract group names from
-        // assuming the groups are in format: CN=<group_name>,...
         for ($i = 0; $i < @$entries[0]['memberof']['count']; $i++) {
-          $grp = $entries[0]['memberof'][$i];
-          $grp_fields = explode(',', $grp);
-          $groups[] = substr($grp_fields[0], 3);
-        }
-
-        if (isTrue('AUTH_DEBUG')) {
-          echo '$member_of'; var_dump($member_of); echo '<br />';
+	  $grp = $entries[0]['memberof'][$i];
+          $groups[] = $grp; // append group to array
+          if (isTrue('DEBUG')) {
+            var_dump($grp); echo ' appended to $groups<br />';
+          }
         }
 
         // check for group membership
         foreach ($member_of as $check_grp) {
+          if (isTrue('DEBUG')) {
+            echo '$check_grp:'; var_dump($check_grp); echo '<br />';
+          }
           if (!in_array($check_grp, $groups)) {
             ldap_unbind($lc);
+            if (isTrue('DEBUG')) {
+              echo '=> '.$login.' is not a member of '.$check_grp.'<br />';
+            }
             return false;
           }
         }
       }
 
       ldap_unbind($lc);
+
+      // check if the user specified full login
+      if (strpos($login, '@') === false) {
+	// append default domain
+        $login .= '@' . $this->params['default_domain'];
+      }
 
       return array('login' => $login, 'data' => $entries, 'member_of' => $groups);
     }

@@ -1,39 +1,28 @@
-{$forms.expenseItemForm.open}
-<table cellspacing="4" cellpadding="7" border="0" width="720">
-<tr>
-  <td>
-  <table border="0" cellpadding="3" cellspacing="1" width="100%">
-  <tr>
-{if $user->isPluginEnabled('cl')}
-    <td class="tableHeader" align="center">{$i18n.label.client}</td>
-{/if}
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
 
-{if $show_project}
-    <td class="tableHeader" align="center">{$i18n.label.project}</td>
+{$forms.expenseItemForm.open}
+<table class="centered-table">
+  <tr>
+{if $user->isPluginEnabled('cl')}
+    <th>{$i18n.label.client}</th>
 {/if}
-    <td class="tableHeader" align="center">{$i18n.label.item}</td>
-    <td class="tableHeader" align="center">{$i18n.label.cost}</td>
+{if $show_project}
+    <th>{$i18n.label.project}</th>
+{/if}
+    <th>{$i18n.label.item}</th>
+    <th>{$i18n.label.cost}</th>
   </tr>
   <tr>
 {if $user->isPluginEnabled('cl')}
-    <td>{$expense_item.client_name|escape}</td>
+    <td class="text-cell">{$expense_item.client_name|escape}</td>
 {/if}
 {if $show_project}
-    <td>{$expense_item.project_name|escape}</td>
+    <td class="text-cell">{$expense_item.project_name|escape}</td>
 {/if}
-    <td>{$expense_item.name|escape}</td>
-    <td align="right">{$expense_item.cost}</td>
+    <td class="text-cell">{$expense_item.name|escape}</td>
+    <td class="time-cell">{$expense_item.cost}</td>
   </tr>
-  </table>
-  <table width="100%">
-  <tr>
-    <td align="center">&nbsp;</td>
-  </tr>
-  <tr>
-    <td align="center">{$forms.expenseItemForm.delete_button.control}&nbsp;&nbsp;{$forms.expenseItemForm.cancel_button.control}</td>
-  </tr>
-  </table>
-  </td>
-</tr>
 </table>
+<div class="button-set">{$forms.expenseItemForm.delete_button.control}&nbsp;{$forms.expenseItemForm.cancel_button.control}</div>
 {$forms.expenseItemForm.close}

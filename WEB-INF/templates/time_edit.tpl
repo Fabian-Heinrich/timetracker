@@ -1,7 +1,10 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
 {include file="time_script.tpl"}
 
 {* Conditional include of confirmSave handler. *}
-{if $confirm_save}
+{if isset($confirm_save) && $confirm_save}
 <script>
 var original_date = "{$entry_date}";
 
@@ -15,84 +18,99 @@ function confirmSave() {
 {/if}
 
 {$forms.timeRecordForm.open}
-<table cellspacing="4" cellpadding="7" border="0">
-<tr>
-  <td>
-  <table width = "100%">
+<table class="centered-table">
   <tr>
-    <td valign="top">
-    <table border="0">
-{if $user->isPluginEnabled('cl')}
-    <tr>
-      <td align="right">{$i18n.label.client}{if $user->isPluginEnabled('cm')} (*){/if}:</td>
-      <td>{$forms.timeRecordForm.client.control}</td>
-    </tr>
-{/if}
-{if $user->isPluginEnabled('iv')}
-    <tr>
-      <td align="right">&nbsp;</td>
-      <td><label>{$forms.timeRecordForm.billable.control}{$i18n.form.time.billable}</label></td>
-    </tr>
-{/if}
-{if ($user->can('manage_invoices') && $user->isPluginEnabled('ps'))}
-    <tr>
-      <td align="right">&nbsp;</td>
-      <td><label>{$forms.timeRecordForm.paid.control}{$i18n.label.paid}</label></td>
-    </tr>
-{/if}
-{if ($custom_fields && $custom_fields->fields[0])} 
-    <tr>
-      <td align="right">{$custom_fields->fields[0]['label']|escape}{if $custom_fields->fields[0]['required']} (*){/if}:</td><td>{$forms.timeRecordForm.cf_1.control}</td>
-    </tr>
-{/if}
-{if ($smarty.const.MODE_PROJECTS == $user->tracking_mode || $smarty.const.MODE_PROJECTS_AND_TASKS == $user->tracking_mode)}
-    <tr>
-      <td align="right">{$i18n.label.project} (*):</td>
-      <td>{$forms.timeRecordForm.project.control}</td>
-    </tr>
-{/if}
-{if ($smarty.const.MODE_PROJECTS_AND_TASKS == $user->tracking_mode)}
-    <tr>
-      <td align="right">{$i18n.label.task}{if $user->task_required} (*){/if}:</td>
-      <td>{$forms.timeRecordForm.task.control}</td>
-    </tr>
-{/if}
-{if (($smarty.const.TYPE_START_FINISH == $user->record_type) || ($smarty.const.TYPE_ALL == $user->record_type))}
-    <tr>
-      <td align="right">{$i18n.label.start}:</td>
-      <td>{$forms.timeRecordForm.start.control}&nbsp;<input onclick="setNow('start');" type="button" tabindex="-1" value="{$i18n.button.now}"></td>
-    </tr>
-    <tr>
-      <td align="right">{$i18n.label.finish}:</td>
-      <td>{$forms.timeRecordForm.finish.control}&nbsp;<input onclick="setNow('finish');" type="button" tabindex="-1" value="{$i18n.button.now}"></td>
-    </tr>
-{/if}
-{if (($smarty.const.TYPE_DURATION == $user->record_type) || ($smarty.const.TYPE_ALL == $user->record_type))}
-    <tr>
-      <td align="right">{$i18n.label.duration}:</td>
-      <td>{$forms.timeRecordForm.duration.control}&nbsp;{if $user->decimal_mark == ','}{str_replace('.', ',', $i18n.form.time.duration_format)}{else}{$i18n.form.time.duration_format}{/if}</td>
-    </tr>
-{/if}
-    <tr>
-      <td align="right">{$i18n.label.date}:</td>
-      <td>{$forms.timeRecordForm.date.control}</td>
-    </tr>
-    <tr>
-      <td align="right">{$i18n.label.note}:</td>
-      <td>{$forms.timeRecordForm.note.control}</td>
-    </tr>
-    <tr>
-      <td colspan="2">&nbsp;</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td align="left">{$forms.timeRecordForm.btn_save.control} {$forms.timeRecordForm.btn_copy.control} {$forms.timeRecordForm.btn_delete.control}</td>
-    </tr>
-    </table>
-    </td>
-    </tr>
-  </table>
-  </td>
+{if $show_client}
+  <tr class = "small-screen-label"><td><label for="client">{$i18n.label.client}{if $user->isOptionEnabled('client_required')} (*){/if}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="client">{$i18n.label.client}{if $user->isOptionEnabled('client_required')} (*){/if}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.client.control}</td>
   </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if $show_billable}
+  <tr>
+    <td class = "large-screen-label">&nbsp;</td>
+    <td><label class="checkbox-label">{$forms.timeRecordForm.billable.control}{$i18n.form.time.billable}</label></td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if $show_paid_status}
+  <tr>
+    <td class = "large-screen-label">&nbsp;</td>
+    <td><label class="checkbox-label">{$forms.timeRecordForm.paid.control}{$i18n.label.paid}</label></td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if isset($custom_fields) && $custom_fields->timeFields}
+  {foreach $custom_fields->timeFields as $timeField}
+    {assign var="control_name" value='time_field_'|cat:$timeField['id']}
+  <tr class = "small-screen-label"><td><label for="{$control_name}">{$timeField['label']|escape}{if $timeField['required']} (*){/if}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="{$control_name}">{$timeField['label']|escape}{if $timeField['required']} (*){/if}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.$control_name.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  {/foreach}
+{/if}
+{if $show_project}
+  <tr class = "small-screen-label"><td><label for="project">{$i18n.label.project} (*):</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="project">{$i18n.label.project} (*):</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.project.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if $show_task}
+  <tr class = "small-screen-label"><td><label for="task">{$i18n.label.task}{if $task_required} (*){/if}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="task">{$i18n.label.task}{if $task_required} (*){/if}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.task.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if $show_start}
+  <tr class = "small-screen-label"><td><label for="start">{$i18n.label.start}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="start">{$i18n.label.start}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.start.control} <img src="img/icon-now.png" onclick="setNow('start');" title="{$i18n.button.now}" alt="{$i18n.button.now}"></td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="finish">{$i18n.label.finish}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="finish">{$i18n.label.finish}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.finish.control}<img src="img/icon-now.png" onclick="setNow('finish');" title="{$i18n.button.now}" alt="{$i18n.button.now}"></td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+{if $show_duration}
+  <tr class = "small-screen-label"><td><label for="duration">{$i18n.label.duration}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="duration">{$i18n.label.duration}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.duration.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+  <tr class = "small-screen-label"><td><label for="date">{$i18n.label.date} (*):</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="date">{$i18n.label.date} (*):</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.date.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{if (isset($template_dropdown) && $template_dropdown)}
+  <tr class = "small-screen-label"><td><label for="template">{$i18n.label.template}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="template">{$i18n.label.template}:</label></td>
+    <td class="td-with-input">{$forms.timeRecordForm.template.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+  <tr class = "small-screen-label"><td><label for="note">{$i18n.label.note}:</label></td></tr>
+  <tr>
+    <td class = "large-screen-label"><label for="note">{$i18n.label.note}:</label></td>
+    <td>{$forms.timeRecordForm.note.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
 </table>
+<div class="button-set">{$forms.timeRecordForm.btn_save.control} {$forms.timeRecordForm.btn_copy.control} {$forms.timeRecordForm.btn_delete.control}</div>
 {$forms.timeRecordForm.close}

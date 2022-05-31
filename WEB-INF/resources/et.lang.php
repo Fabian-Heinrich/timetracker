@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -35,8 +11,6 @@ $i18n_language = 'Estonian (Eesti)';
 $i18n_months = array('Jaanuar', 'Veebruar', 'Märts', 'Aprill', 'Mai', 'Juuni', 'Juuli', 'August', 'September', 'Oktoober', 'November', 'Detsember');
 $i18n_weekdays = array('Pühapäev', 'Esmaspäev', 'Teisipäev', 'Kolmapäev', 'Neljapäev', 'Reede', 'Laupäev');
 $i18n_weekdays_short = array('P', 'E', 'T', 'K', 'N', 'R', 'L');
-// format mm/dd
-$i18n_holidays = array('01/01', '02/24', '04/19', '04/21', '05/01', '06/09', '06/23', '06/24', '08/20', '12/24', '12/25', '12/26');
 
 $i18n_key_words = array(
 
@@ -46,19 +20,24 @@ $i18n_key_words = array(
 'menu.logout' => 'Välju',
 'menu.forum' => 'Foorum',
 'menu.help' => 'Abiinfo',
-'menu.create_group' => 'Loo grupp',
+// TODO: translate the following.
+// 'menu.register' => 'Register',
 'menu.profile' => 'Profiil',
 'menu.group' => 'Grupp',
 'menu.plugins' => 'Lisad',
 'menu.time' => 'Ajaarvestus',
+// TODO: translate the following.
+// 'menu.puncher' => 'Punch',
+// 'menu.week' => 'Week',
 'menu.expenses' => 'Kulud',
 'menu.reports' => 'Raportid',
+// TODO: translate the following.
+// 'menu.timesheets' => 'Timesheets',
 'menu.charts' => 'Diagrammid',
 'menu.projects' => 'Projektid',
 'menu.tasks' => 'Tööülesanded',
 'menu.users' => 'Kasutajad',
 'menu.groups' => 'Grupid',
-'menu.subgroups' => 'Alamgrupid',
 'menu.export' => 'Eksport', // TODO: is this a correct term as an opposite of "Import"?
 'menu.clients' => 'Kliendid',
 'menu.options' => 'Suvandid',
@@ -73,6 +52,8 @@ $i18n_key_words = array(
 'error.access_denied' => 'Puudub ligipääs.',
 'error.sys' => 'Rakenduse viga.',
 'error.db' => 'Andmebaasi viga.',
+// TODO: translate the following.
+// 'error.registered_recently' => 'Registered recently.',
 'error.feature_disabled' => 'Rakenduse funktsionaalsus on välja lülitatud.',
 'error.field' => 'Välja "{0}" andmed ei vasta nõutele.',
 'error.empty' => 'Väli "{0}" on tühi.',
@@ -84,6 +65,9 @@ $i18n_key_words = array(
 'error.report' => 'Vali raport.',
 'error.record' => 'Vali kirje.',
 'error.auth' => 'Autentimine ebaõnnestus.',
+// TODO: translate the following.
+// 'error.2fa_code' => 'Invalid 2FA code.',
+// 'error.weak_password' => 'Weak password.',
 'error.user_exists' => 'Selle nimega kasutaja on juba kasutusel.',
 'error.object_exists' => 'Sellise nimega objekt on juba olemas.',
 'error.invoice_exists' => 'Arve number on juba kasutusel.',
@@ -101,6 +85,8 @@ $i18n_key_words = array(
 // Google auto-translates below as "No billable invoices found." which seems wrong.
 // 'error.no_invoiceable_items' => 'Arveldatavaid arveid ei leitud.',
 
+// TODO: translate the following.
+// 'error.no_records' => 'There are no records.',
 'error.no_login' => 'Sellise tunnusega kasutajat ei ole.',
 
 // TODO: Improve translation of error.no_groups. Replace meeskond with grupp?
@@ -122,6 +108,8 @@ $i18n_key_words = array(
 'error.format' => 'Faili formaat on vale.',
 'error.user_count' => 'Kasutajate arvu piirang.',
 'error.expired' => 'Kehtivusaeg on lõppenud.',
+// TODO: translate the following.
+// 'error.file_storage' => 'File storage server error.', // See comment in English file.
 
 // Warning messages.
 'warn.sure' => 'Oled kindel?',
@@ -147,9 +135,18 @@ $i18n_key_words = array(
 'button.export' => 'Ekspordi grupp',
 'button.import' => 'Impordi grupp',
 'button.close' => 'Sulge',
+// TODO: translate the following.
+// 'button.start' => 'Start',
 'button.stop' => 'Stopp',
+// TODO: translate the following.
+// 'button.approve' => 'Approve',
+// 'button.disapprove' => 'Disapprove',
+// 'button.sync' => 'Sync', // Used in Android app. The meaning is to synchronize offline time records with server.
+
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
+// TODO: translate the following.
+// 'label.menu' => 'Menu',
 'label.group_name' => 'Grupi nimi',
 'label.address' => 'Aadress',
 'label.currency' => 'Valuuta',
@@ -201,6 +198,8 @@ $i18n_key_words = array(
 'label.select_none' => 'Märgi kõik mittevalituks',
 'label.day_view' => 'Päeva vaade',
 'label.week_view' => 'Nädala vaade',
+// TODO: translate the following:
+// 'label.puncher' => 'Puncher',
 'label.id' => 'ID',
 'label.language' => 'Keel',
 'label.decimal_mark' => 'Koma märk',
@@ -220,16 +219,17 @@ $i18n_key_words = array(
 'label.required_fields' => '* nõutud väljad',
 // TODO: Translate label.on_behalf, perhaps trying as "instead of".
 // 'label.on_behalf' => 'on behalf of',
-'label.role_manager' => '(haldur)',
-'label.role_comanager' => '(kaashaldur)',
-'label.role_admin' => '(administraator)',
 'label.page' => 'Lehekülg',
 'label.condition' => 'Tingimus',
 'label.yes' => 'jah',
 'label.no' => 'ei',
+// TODO: translate the following.
+// 'label.sort' => 'Sort',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 'label.custom_fields' => 'Eriväljad',
 'label.monthly_quotas' => 'Kuu kvoot',
+// TODO: translate the following.
+// 'label.entity' => 'Entity',
 'label.type' => 'Tüüp',
 'label.type_dropdown' => 'rippmenüü',
 'label.type_text' => 'tekst',
@@ -244,10 +244,33 @@ $i18n_key_words = array(
 'label.mark_paid' => 'Märgi makstuks',
 'label.week_note' => 'Nädala märge',
 'label.week_list' => 'Nädala nimekiri',
+// TODO: translate the following:
+// 'label.weekends' => 'Weekends',
 'label.work_units' => 'Töö ühikud',
 'label.work_units_short' => 'Ühikud',
 'label.totals_only' => 'Ainult summad',
 'label.quota' => 'Kvoot',
+// TODO: translate the following.
+// 'label.timesheet' => 'Timesheet',
+// 'label.submitted' => 'Submitted',
+// 'label.approved' => 'Approved',
+// 'label.approval' => 'Report approval',
+// 'label.mark_approved' => 'Mark approved',
+// 'label.template' => 'Template',
+// 'label.bind_templates_with_projects' => 'Bind templates with projects',
+// 'label.prepopulate_note' => 'Prepopulate Note field',
+// 'label.attachments' => 'Attachments',
+// 'label.files' => 'Files',
+// 'label.file' => 'File',
+'label.active_users' => 'Aktiivsed kasutajad',
+'label.inactive_users' => 'Mitteaktiivsed kasutajad',
+
+// Entity names. We use lower case (in English) because they are used in dropdowns, too.
+// They are used to associate a custom field with an entity type.
+// TODO: translate the following.
+// 'entity.time' => 'time',
+// 'entity.user' => 'user',
+// 'entity.project' => 'project',
 
 // Form titles.
 // TODO: Improve titles for consistency, so that each title explains correctly what each
@@ -257,8 +280,9 @@ $i18n_key_words = array(
 'title.error' => 'Viga',
 'title.success' => 'Õnnestumine',
 'title.login' => 'Sisene',
+// TODO: translate the follolwing.
+// 'title.2fa' => 'Two Factor Authentication',
 'title.groups' => 'Grupid',
-'title.subgroups' => 'Alamgrupid',
 'title.add_group' => 'Lisa grupp',
 'title.edit_group' => 'Muuda gruppi',
 'title.delete_group' => 'Kustuta grupp',
@@ -267,9 +291,14 @@ $i18n_key_words = array(
 'title.time' => 'Ajaarvestus',
 'title.edit_time_record' => 'Ajakande muutmine',
 'title.delete_time_record' => 'Ajakande kustutamine',
+// TODO: Translate the following.
+// 'title.time_files' => 'Time Record Files',
+// 'title.puncher' => 'Puncher',
 'title.expenses' => 'Kulud',
 'title.edit_expense' => 'Kulukirje muutmine',
 'title.delete_expense' => 'Kulukirje kustutamine',
+// TODO: translate the following.
+// 'title.expense_files' => 'Expense Item Files',
 'title.predefined_expenses' => 'Eelmääratud kulukirje',
 'title.add_predefined_expense' => 'Lisa eelmääratud kulukirje',
 'title.edit_predefined_expense' => 'Muuda eelmääratut kulukirjet',
@@ -277,10 +306,16 @@ $i18n_key_words = array(
 'title.reports' => 'Raportid',
 'title.report' => 'Raport',
 'title.send_report' => 'Saadan raportit',
+// TODO: Translate the following.
+// 'title.timesheets' => 'Timesheets',
+// 'title.timesheet' => 'Timesheet',
+// 'title.timesheet_files' => 'Timesheet Files',
 'title.invoice' => 'Arve',
 'title.send_invoice' => 'Saada arve',
 'title.charts' => 'Diagrammid',
 'title.projects' => 'Projektid',
+// TODO: translate the following.
+// 'title.project_files' => 'Project Files',
 'title.add_project' => 'Projekti lisamine',
 'title.edit_project' => 'Projekti muutmine',
 'title.delete_project' => 'Projekti kustutamine',
@@ -308,10 +343,16 @@ $i18n_key_words = array(
 'title.add_notification' => 'Teate lisamine',
 'title.edit_notification' => 'Teate muutmine',
 'title.delete_notification' => 'Teate kustutamine',
+// TODO: translate the following.
+// 'title.add_timesheet' => 'Adding Timesheet',
+// 'title.edit_timesheet' => 'Editing Timesheet',
+// 'title.delete_timesheet' => 'Deleting Timesheet',
 'title.monthly_quotas' => 'Kuu kvoot',
 'title.export' => 'Grupi andmete alla laadimine',
 'title.import' => 'Grupi andmete üles laadimine',
 'title.options' => 'Suvandid',
+// TODO: translate the following.
+// 'title.display_options' => 'Display Options',
 'title.profile' => 'Profiil',
 'title.plugins' => 'Lisad',
 'title.cf_custom_fields' => 'Eriväljad',
@@ -326,6 +367,14 @@ $i18n_key_words = array(
 'title.week_view' => 'Nädala vaade',
 'title.swap_roles' => 'Rollivahetus',
 'title.work_units' => 'Töö ühikud',
+// TODO: translate the following.
+// 'title.templates' => 'Templates',
+// 'title.add_template' => 'Adding Template',
+// 'title.edit_template' => 'Editing Template',
+// 'title.delete_template' => 'Deleting Template',
+// 'title.edit_file' => 'Editing File',
+// 'title.delete_file' => 'Deleting File',
+// 'title.download_file' => 'Downloading File',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -349,21 +398,39 @@ $i18n_key_words = array(
 'dropdown.clients' => 'kliendid',
 'dropdown.select' => '--- vali ---',
 'dropdown.select_invoice' => '--- vali arve ---',
+// TODO: translate the following.
+// 'dropdown.select_timesheet' => '--- select timesheet ---',
 'dropdown.status_active' => 'aktiivne',
 'dropdown.status_inactive' => 'mitte aktiivne',
 'dropdown.delete' => 'kustuta',
 'dropdown.do_not_delete' => 'ära kustuta',
+// TODO: translate the following.
+// 'dropdown.approved' => 'approved',
+// 'dropdown.not_approved' => 'not approved',
 'dropdown.paid' => 'makstud',
 'dropdown.not_paid' => 'mitte makstud',
+// TODO: translate the following.
+// 'dropdown.ascending' => 'ascending',
+// 'dropdown.descending' => 'descending',
 
 // Login form. See example at https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'Unustasid salasõna?',
-'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> on lihtne, lihtsalt kasutatav ja avatud lähtekoodiga ajaarvestussüsteem.',
+'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> on avatud lähtekoodiga ajaarvestussüsteem.',
+
+// Email subject and body for two-factor authentication.
+// TODO: translate the following.
+// 'email.2fa_code.subject' => 'Anuko Time Tracker two-factor authentication code',
+// 'email.2fa_code.body' => "Dear User,\n\nYour two-factor authentication code is:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+// TODO: translate the following.
+// 'form.2fa.hint' => 'Check your email for 2FA code and enter it here.',
+// 'form.2fa.2fa_code' => '2FA code',
 
 // Resetting Password form. See example at https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => 'Salasõna tühistamise teade on saadetud e-postile.',
 'form.reset_password.email_subject' => 'Anuko Time Tracker, parooli tühistamise nõue',
-'form.reset_password.email_body' => "Lugupeetud Kasutaja,\n\nIP-lt %s on nõutud Teie salasõna lähtestamist. Palun avage allolev link, kui soovite oma parooli lähtestada.\n\n%s\n\nAnuko Time Tracker on lihtne, lihtsalt kasutatav ja avatud lähtekoodiga ajaarvestussüsteem. Lisainfo saamiseks külastage https://www.anuko.com lehekülge.\n\n",
+'form.reset_password.email_body' => "Lugupeetud Kasutaja,\n\nIP-lt %s on nõutud Teie salasõna lähtestamist. Palun avage allolev link, kui soovite oma parooli lähtestada.\n\n%s\n\nAnuko Time Tracker on avatud lähtekoodiga ajaarvestussüsteem. Lisainfo saamiseks külastage https://www.anuko.com lehekülge.\n\n",
 
 // Changing Password form. See example at https://timetracker.anuko.com/password_change.php?ref=1.
 'form.change_password.tip' => 'Kirjuta siia oma uus parool ja salvesta.',
@@ -400,10 +467,15 @@ $i18n_key_words = array(
 // Our concern is that Google auto-translates "arveldamata" as unpaid. Therefore, we may need a fix here.
 // 'form.reports.include_invoiced' => 'arveldatud', // TODO: fix as per the above comment, if needed.
 // 'form.reports.include_not_invoiced' => 'arveldamata', // TODO: fix as per the above comment, if needed.
-
+// 'form.reports.include_assigned' => 'assigned',
+// 'form.reports.include_not_assigned' => 'not assigned',
+// 'form.reports.include_pending' => 'pending',
 'form.reports.select_period' => 'Vali ajaperiood',
 'form.reports.set_period' => 'või märgi kuupäevad',
 'form.reports.show_fields' => 'Näita välju',
+// TODO: translate the following.
+// 'form.reports.time_fields' => 'Time fields',
+// 'form.reports.user_fields' => 'User fields',
 'form.reports.group_by' => 'Grupeeri',
 'form.reports.group_by_no' => '--- grupeerimata ---',
 'form.reports.group_by_date' => 'kuupäev',
@@ -416,9 +488,21 @@ $i18n_key_words = array(
 // (after generating a report at https://timetracker.anuko.com/reports.php).
 'form.report.export' => 'Eksport',
 'form.report.assign_to_invoice' => 'Lisa arvele',
+// TODO: translate the following.
+// 'form.report.assign_to_timesheet' => 'Assign to timesheet',
 
-// Invoice form. See example at https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+// TODO: translate the following.
+// 'form.timesheets.active_timesheets' => 'Active Timesheets',
+// 'form.timesheets.inactive_timesheets' => 'Inactive Timesheets',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+// TODO: translate the following.
+// 'form.templates.active_templates' => 'Active Templates',
+// 'form.templates.inactive_templates' => 'Inactive Templates',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => 'Arve number',
 'form.invoice.person' => 'Isik',
 
@@ -440,8 +524,8 @@ $i18n_key_words = array(
 'form.tasks.inactive_tasks' => 'Mitteaktiivsed tööülesanded',
 
 // Users form. See example at https://timetracker.anuko.com/users.php
-'form.users.active_users' => 'Aktiivsed kasutajad',
-'form.users.inactive_users' => 'Mitteaktiivsed kasutajad',
+// TODO: translate the following.
+// 'form.users.uncompleted_entry_today' => 'User has an uncompleted time entry today',
 'form.users.uncompleted_entry' => 'Kasutajal on lõpetamata aja kanne',
 'form.users.role' => 'Roll',
 'form.users.manager' => 'Haldur',
@@ -488,7 +572,9 @@ $i18n_key_words = array(
 // Group Settings form. See example at https://timetracker.anuko.com/group_edit.php.
 'form.group_edit.12_hours' => '12 tundi',
 'form.group_edit.24_hours' => '24 tundi',
-'form.group_edit.show_holidays' => 'Näita pühi',
+// TODO: translate the following.
+// 'form.group_edit.display_options' => 'Display options',
+// 'form.group_edit.holidays' => 'Holidays',
 'form.group_edit.tracking_mode' => 'Jälgimise režiim',
 'form.group_edit.mode_time' => 'ajaarvestus',
 'form.group_edit.mode_projects' => 'projektid',
@@ -498,20 +584,28 @@ $i18n_key_words = array(
 'form.group_edit.type_start_finish' => 'algus ja lõpp',
 'form.group_edit.type_duration' => 'vahemik',
 'form.group_edit.punch_mode' => 'Kellast-kellani režiim',
+// TODO: translate the following.
+// 'form.group_edit.one_uncompleted' => 'One uncompleted',
 'form.group_edit.allow_overlap' => 'Luba ajaline ülekate',
 'form.group_edit.future_entries' => 'Tuleviku kirjed',
 'form.group_edit.uncompleted_indicators' => 'Lõpetamata kirjete indikaator', // TODO: Fix this. Indicators (plural), not indicator.
 'form.group_edit.confirm_save' => 'Kinnita salvestamine',
-'form.group_edit.allow_ip' => 'Luba IP',
+// TODO: translate the following.
+// 'form.group_edit.advanced_settings' => 'Advanced settings',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+'form.group_advanced_edit.allow_ip' => 'Luba IP',
+// TODO: Translate the following.
+// 'form.group_advanced_edit.password_complexity' => 'Password complexity',
+// 'form.group_advanced_edit.2fa' => 'Two factor authentication',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 'form.group_delete.hint' => 'Oled kindel, et soovid kogu gruppi kustutada?',
 
 // Mail form. See example at https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'Kellelt',
 'form.mail.to' => 'Kellele',
 'form.mail.report_subject' => 'Time Tracker raport',
-'form.mail.footer' => 'Anuko Time Tracker on lihtne, lihtsalt kasutatav ja avatud lähtekoodiga <br>ajaarvestussüsteem. Lisainfo saamiseks külastage <a href="https://www.anuko.com">www.anuko.com</a> lehekülge.',
+'form.mail.footer' => 'Anuko Time Tracker on avatud lähtekoodiga <br>ajaarvestussüsteem. Lisainfo saamiseks külastage <a href="https://www.anuko.com">www.anuko.com</a> lehekülge.',
 'form.mail.report_sent' => 'Raport on saadetud.',
 'form.mail.invoice_sent' => 'Arve on saadetud.',
 
@@ -536,7 +630,9 @@ $i18n_key_words = array(
 // 'role.user.description' => 'A regular member without management rights.',
 'role.client.label' => 'Klient',
 'role.client.low_case_label' => 'klient',
-'role.client.description' => 'Kliendil on lubatud vaadata oma raporteid, diagramme ja arveid.',
+// TODO: translate the following.
+// 'role.client.description' => 'A client can view its own data.',
+'role.client.description' => 'Kliendil on lubatud vaadata oma raporteid ja arveid.',
 'role.supervisor.label' => 'Ülevaataja',
 'role.supervisor.low_case_label' => 'ülevaataja',
 'role.supervisor.description' => 'Mõningate lisaõigustega kasutaja.',
@@ -552,4 +648,20 @@ $i18n_key_words = array(
 'role.admin.label' => 'Administraator',
 'role.admin.low_case_label' => 'administraator',
 'role.admin.description' => 'Rakenduse administraator.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+// TODO: translate the following.
+// 'form.timesheet_view.submit_subject' => 'Timesheet approval request',
+// 'form.timesheet_view.submit_body' => "A new timesheet requires approval.<p>User: %s.",
+// 'form.timesheet_view.approve_subject' => 'Timesheet approved',
+// 'form.timesheet_view.approve_body' => "Your timesheet %s was approved.<p>%s",
+// 'form.timesheet_view.disapprove_subject' => 'Timesheet not approved',
+// 'form.timesheet_view.disapprove_body' => "Your timesheet %s was not approved.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+// TODO: translate the following.
+// 'form.display_options.note_on_separate_row' => 'Note on separate row',
+// 'form.display_options.not_complete_days' => 'Not complete days',
+// 'form.display_options.inactive_projects' => 'Inactive projects',
+// 'form.display_options.custom_css' => 'Custom CSS',
 );

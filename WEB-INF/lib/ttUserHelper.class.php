@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttTeamHelper');
 
@@ -82,6 +58,11 @@ class ttUserHelper {
   static function getUserIdByTmpRef($ref) {
     $mdb2 = getConnection();
 
+    // Some protection for brute force attacks to guess a reference for user.
+    // This limits an available window for brute force guessing to 1 hour.
+    $sql = "delete from tt_tmp_refs where created < now() - interval 1 hour";
+    $affected = $mdb2->exec($sql);
+
     $sql = "select user_id from tt_tmp_refs where ref = ".$mdb2->quote($ref);
     $res = $mdb2->query($sql);
 
@@ -107,38 +88,38 @@ class ttUserHelper {
     $quota_percent = str_replace(',', '.', isset($fields['quota_percent']) ? $fields['quota_percent'] : 100);
     if($rate == '')
       $rate = 0;
-    if (array_key_exists('status', $fields)) { // Key exists and may be NULL during migration of deleted acounts.
-      $status_f = ', status';
-      $status_v = ', '.$mdb2->quote($fields['status']);
-    }
     $created_ip_v = ', '.$mdb2->quote($_SERVER['REMOTE_ADDR']);
     $created_by_v = ', '.$user->id;
 
-    $sql = "insert into tt_users (name, login, password, group_id, org_id, role_id, client_id, rate, quota_percent, email, created, created_ip, created_by $status_f) values (".
+    $sql = "insert into tt_users (name, login, password, group_id, org_id, role_id, client_id, rate, quota_percent, email, created, created_ip, created_by) values (".
       $mdb2->quote($fields['name']).", ".$mdb2->quote($fields['login']).
-      ", $password, $group_id, $org_id, ".$mdb2->quote($fields['role_id']).", ".$mdb2->quote($fields['client_id']).", $rate, $quota_percent, ".$mdb2->quote($email).", now() $created_ip_v $created_by_v $status_v)";
+      ", $password, $group_id, $org_id, ".$mdb2->quote($fields['role_id']).", ".$mdb2->quote($fields['client_id']).", $rate, $quota_percent, ".$mdb2->quote($email).", now() $created_ip_v $created_by_v)";
     $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
 
     // Now deal with project assignment.
-    if (!is_a($affected, 'PEAR_Error')) {
-      $last_id = $mdb2->lastInsertID('tt_users', 'id');
-      $projects = isset($fields['projects']) ? $fields['projects'] : array();
-      if (count($projects) > 0) {
-        // We have at least one project assigned. Insert corresponding entries in tt_user_project_binds table.
-        foreach($projects as $p) {
-          if(!isset($p['rate']))
-            $p['rate'] = 0;
-          else
-            $p['rate'] = str_replace(',', '.', $p['rate']);
+    $last_id = $mdb2->lastInsertID('tt_users', 'id');
+    $projects = isset($fields['projects']) ? $fields['projects'] : array();
+    if (count($projects) > 0) {
+      // We have at least one project assigned. Insert corresponding entries in tt_user_project_binds table.
+      foreach($projects as $p) {
+        if(!isset($p['rate']))
+          $p['rate'] = 0;
+        else
+          $p['rate'] = str_replace(',', '.', $p['rate']);
 
-          $sql = "insert into tt_user_project_binds (project_id, user_id, group_id, org_id, rate, status)".
-            " values(".$p['id'].", $last_id, $group_id, $org_id, ".$p['rate'].", 1)";
-          $affected = $mdb2->exec($sql);
-        }
+        $sql = "insert into tt_user_project_binds (project_id, user_id, group_id, org_id, rate, status)".
+          " values(".$p['id'].", $last_id, $group_id, $org_id, ".$p['rate'].", 1)";
+        $affected = $mdb2->exec($sql);
       }
-      return $last_id;
     }
-    return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
+    return $last_id;
   }
 
   // update - updates a user in database.
@@ -154,6 +135,8 @@ class ttUserHelper {
     $org_id = $user->org_id;
 
     // Prepare query parts.
+    $login_part = $pass_part = $name_part = $role_part = $client_part =
+    $rate_part = $quota_percent_part = $status_part = '';
     if (isset($fields['login'])) {
       $login_part = ", login = ".$mdb2->quote($fields['login']);
     }
@@ -253,6 +236,11 @@ class ttUserHelper {
         }
       }
     }
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
     return true;
   }
 
@@ -303,7 +291,39 @@ class ttUserHelper {
     if (is_a($affected, 'PEAR_Error'))
       return false;
 
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
     return true;
+  }
+
+  // The recentRefExists determines if a reasonably recent user reference already exists.
+  // We do it similar to ttRegistrator::registeredRecently().
+  static function recentRefExists($user_id) {
+    $mdb2 = getConnection();
+
+    $sql = "select count(*) as cnt from tt_tmp_refs where user_id = $user_id and created > now() - interval 15 minute";
+    $res = $mdb2->query($sql);
+    if (is_a($res, 'PEAR_Error'))
+      return false;
+    $val = $res->fetchRow();
+    if ($val['cnt'] == 0)
+      return false; // No references in last 15 minutes.
+    if ($val['cnt'] >= 2)
+      return true;  // 2 or more references in last 15 mintes.
+
+    // If we are here, there was exactly one reference during last 15 minutes.
+    // Determine if it occurred within the last minute in a separate query.
+    $sql = "select created from tt_tmp_refs where user_id = $user_id and created > now() - interval 1 minute";
+    $res = $mdb2->query($sql);
+    if (is_a($res, 'PEAR_Error'))
+      return false;
+    $val = $res->fetchRow();
+    if ($val)
+      return true;
+
+    return false;
   }
 
   // The saveTmpRef saves a temporary reference for user that is used to reset user password.
@@ -324,6 +344,10 @@ class ttUserHelper {
     $sql = "update tt_users set password = md5(".$mdb2->quote($password).") where id = $user_id";
     $affected = $mdb2->exec($sql);
 
+    if (!is_a($affected, 'PEAR_Error')) {
+      $sql = "delete from tt_tmp_refs where user_id = $user_id";
+      $affected = $mdb2->exec($sql);
+    }
     return (!is_a($affected, 'PEAR_Error'));
   }
 
@@ -403,5 +427,22 @@ class ttUserHelper {
       return true; // Limit not reached.
 
     return false;
+  }
+
+  // getUserRank - obtains a rank for a given user.
+  static function getUserRank($user_id) {
+    global $user;
+    $mdb2 = getConnection();
+
+    $group_id = $user->getGroup();
+    $org_id = $user->org_id;
+
+    $sql = "select r.rank from tt_users u".
+      " left join tt_roles r on (u.role_id = r.id)".
+      " where u.id = $user_id and u.group_id = $group_id and u.org_id = $org_id";
+    $res = $mdb2->query($sql);
+    if (is_a($res, 'PEAR_Error')) return 0;
+    $val = $res->fetchRow();
+    return $val['rank'];
   }
 }

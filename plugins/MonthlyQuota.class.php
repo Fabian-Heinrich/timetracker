@@ -23,7 +23,7 @@
 // |
 // +----------------------------------------------------------------------+
 // | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
+// | https://www.anuko.com/time-tracker/credits.htm
 // +----------------------------------------------------------------------+
 
 import('ttTimeHelper');
@@ -51,8 +51,14 @@ class MonthlyQuota {
       $insertSql = "insert into tt_monthly_quotas (group_id, org_id, year, month, minutes)".
         " values ($this->group_id, $this->org_id, $year, $month, $minutes)";
       $affected = $this->db->exec($insertSql);
-      return (!is_a($affected, 'PEAR_Error'));
+      if (is_a($affected, 'PEAR_Error'))
+        return false;
     }
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
     return true;
   }
 
@@ -98,13 +104,13 @@ class MonthlyQuota {
   // from 1st of the month up to and inclusive of $selected_date.
   public function getUserQuotaFrom1st($selected_date) {
     // TODO: we may need a better algorithm here. Review.
-    $monthQuotaMinutes = $this->getUserQuota($selected_date->mYear, $selected_date->mMonth);
-    $workdaysInMonth = $this->getNumWorkdays($selected_date->mMonth, $selected_date->mYear);
+    $monthQuotaMinutes = $this->getUserQuota($selected_date->year, $selected_date->month);
+    $workdaysInMonth = $this->getNumWorkdays($selected_date->month, $selected_date->year);
 
     // Iterate from 1st up to selected date.
     $workdaysFrom1st = 0;
-    for ($i = 1; $i <= $selected_date->mDate; $i++) {
-      $date = "$selected_date->mYear-$selected_date->mMonth-$i";
+    for ($i = 1; $i <= $selected_date->day; $i++) {
+      $date = ttTimeHelper::dateInDatabaseFormat($selected_date->year, $selected_date->month, $i);
       if (!ttTimeHelper::isWeekend($date) && !ttTimeHelper::isHoliday($date)) {
         $workdaysFrom1st++;
       }
@@ -133,12 +139,13 @@ class MonthlyQuota {
   // getNumWorkdays returns a number of work days in a given month.
   private function getNumWorkdays($month, $year) {
 
-    $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year); // Number of calendar days in month.
+    $daysInMonth = date('t', mktime(0, 0, 0, $month, 1, $year));
 
     $workdaysInMonth = 0;
     // Iterate through the entire month.
     for ($i = 1; $i <= $daysInMonth; $i++) {
       $date = "$year-$month-$i";
+      $date = ttTimeHelper::dateInDatabaseFormat($year, $month, $i);
       if (!ttTimeHelper::isWeekend($date) && !ttTimeHelper::isHoliday($date)) {
         $workdaysInMonth++;
       }

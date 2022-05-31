@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // ttOrgImportHelper class is used to import organization data from an XML file
 // prepared by ttOrgExportHelper and consisting of nested groups with their info.
@@ -36,7 +12,7 @@ class ttOrgImportHelper {
   var $canImport      = true;    // False if we cannot import data due to a conflict such as login collision.
   var $firstPass      = true;    // True during first pass through the file.
   var $org_id         = null;    // Organization id (same as top group_id).
-  var $current_group_id        = null; // Current group id during parsing.
+  var $current_group_id     = null; // Current group id during parsing.
   var $parents        = array(); // A stack of parent group ids for current group all the way to the root including self.
   var $top_role_id    = 0;       // Top role id.
 
@@ -46,10 +22,12 @@ class ttOrgImportHelper {
   var $currentGroupProjectMap = array();
   var $currentGroupClientMap  = array();
   var $currentGroupUserMap    = array();
+  var $currentGroupTimesheetMap = array();
   var $currentGroupInvoiceMap = array();
   var $currentGroupLogMap     = array();
   var $currentGroupCustomFieldMap = array();
   var $currentGroupCustomFieldOptionMap = array();
+  var $currentGroupTemplateMap = array();
   var $currentGroupFavReportMap = array();
 
   // Constructor.
@@ -65,7 +43,7 @@ class ttOrgImportHelper {
     // First pass through the file determines if we can import data.
     // We require 2 things:
     //   1) Database schema version must be set. This ensures we have a compatible file.
-    //   2) No login coillisions are allowed.
+    //   2) No login collisions are allowed.
     if ($this->firstPass) {
       if ($name == 'ORG' && $this->canImport) {
          if ($attrs['SCHEMA'] == null) {
@@ -101,6 +79,7 @@ class ttOrgImportHelper {
         $this->current_group_id = $this->createGroup(array(
           'parent_id' => $this->current_group_id, // Note: after insert current_group_id changes.
           'org_id' => $this->org_id,
+          'group_key' => $attrs['GROUP_KEY'],
           'name' => $attrs['NAME'],
           'description' => $attrs['DESCRIPTION'],
           'currency' => $attrs['CURRENCY'],
@@ -111,7 +90,6 @@ class ttOrgImportHelper {
           'week_start' => $attrs['WEEK_START'],
           'tracking_mode' => $attrs['TRACKING_MODE'],
           'project_required' => $attrs['PROJECT_REQUIRED'],
-          'task_required' => $attrs['TASK_REQUIRED'],
           'record_type' => $attrs['RECORD_TYPE'],
           'bcc_email' => $attrs['BCC_EMAIL'],
           'allow_ip' => $attrs['ALLOW_IP'],
@@ -120,7 +98,8 @@ class ttOrgImportHelper {
           'lock_spec' => $attrs['LOCK_SPEC'],
           'workday_minutes' => $attrs['WORKDAY_MINUTES'],
           'custom_logo' => $attrs['CUSTOM_LOGO'],
-          'config' => $attrs['CONFIG']));
+          'config' => $attrs['CONFIG'],
+          'custom_css' => $attrs['CUSTOM_CSS']));
 
         // Special handling for top group.
         if (!$this->org_id && $this->current_group_id) {
@@ -138,11 +117,13 @@ class ttOrgImportHelper {
         unset($this->currentGroupProjectMap); $this->currentGroupProjectMap = array();
         unset($this->currentGroupClientMap); $this->currentGroupClientMap = array();
         unset($this->currentGroupUserMap); $this->currentGroupUserMap = array();
+        unset($this->currentGroupTimesheetMap); $this->currentGroupTimesheetMap = array();
         unset($this->currentGroupInvoiceMap); $this->currentGroupInvoiceMap = array();
         unset($this->currentGroupLogMap); $this->currentGroupLogMap = array();
         unset($this->currentGroupCustomFieldMap); $this->currentGroupCustomFieldMap = array();
         unset($this->currentGroupCustomFieldOptionMap); $this->currentGroupCustomFieldOptionMap = array();
-        unset($this->currentGroupFavReportMap); $this->currentGroupCustomFavReportMap = array();
+        unset($this->currentGroupTemplateMap); $this->currentGroupTemplateMap = array();
+        unset($this->currentGroupFavReportMap); $this->currentGroupFavReportMap = array();
         return;
       }
 
@@ -244,7 +225,7 @@ class ttOrgImportHelper {
           'group_id' => $this->current_group_id,
           'org_id' => $this->org_id,
           'role_id' => $role_id,
-          'client_id' => $this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'client_id' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
           'name' => $attrs['NAME'],
           'login' => $attrs['LOGIN'],
           'password' => $attrs['PASSWORD'],
@@ -274,6 +255,31 @@ class ttOrgImportHelper {
         return;
       }
 
+      if ($name == 'TIMESHEET') {
+        // We get here when processing <timesheet> tags for the current group.
+        $timesheet_id = $this->insertTimesheet(array(
+          'user_id' => $this->currentGroupUserMap[$attrs['USER_ID']],
+          'group_id' => $this->current_group_id,
+          'org_id' => $this->org_id,
+          'client_id' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'project_id' => @$this->currentGroupProjectMap[$attrs['PROJECT_ID']],
+          'name' => $attrs['NAME'],
+          'comment' => $attrs['COMMENT'],
+          'start_date' => $attrs['START_DATE'],
+          'end_date' => $attrs['END_DATE'],
+          'submit_status' => $attrs['SUBMIT_STATUS'],
+          'approve_status' => $attrs['APPROVE_STATUS'],
+          'approve_comment' => $attrs['APPROVE_COMMENT'],
+          'status' => $attrs['STATUS']));
+        if ($timesheet_id) {
+          // Add a mapping.
+          $this->currentGroupTimesheetMap[$attrs['ID']] = $timesheet_id;
+        } else {
+          $this->errors->add($i18n->get('error.db'));
+        }
+        return;
+      }
+
       if ($name == 'INVOICE') {
         // We get here when processing <invoice> tags for the current group.
         $invoice_id = $this->insertInvoice(array(
@@ -281,7 +287,7 @@ class ttOrgImportHelper {
           'org_id' => $this->org_id,
           'name' => $attrs['NAME'],
           'date' => $attrs['DATE'],
-          'client_id' => $this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'client_id' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
           'status' => $attrs['STATUS']));
         if ($invoice_id) {
           // Add a mapping.
@@ -300,14 +306,16 @@ class ttOrgImportHelper {
           'org_id' => $this->org_id,
           'date' => $attrs['DATE'],
           'start' => $attrs['START'],
-          'finish' => $attrs['FINISH'],
+          'finish' => @$attrs['FINISH'],
           'duration' => $attrs['DURATION'],
-          'client_id' => $this->currentGroupClientMap[$attrs['CLIENT_ID']],
-          'project_id' => $this->currentGroupProjectMap[$attrs['PROJECT_ID']],
-          'task_id' => $this->currentGroupTaskMap[$attrs['TASK_ID']],
-          'invoice_id' => $this->currentGroupInvoiceMap[$attrs['INVOICE_ID']],
+          'client_id' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'project_id' => @$this->currentGroupProjectMap[$attrs['PROJECT_ID']],
+          'task_id' => @$this->currentGroupTaskMap[$attrs['TASK_ID']],
+          'timesheet_id' => @$this->currentGroupTimesheetMap[$attrs['TIMESHEET_ID']],
+          'invoice_id' => @$this->currentGroupInvoiceMap[$attrs['INVOICE_ID']],
           'comment' => (isset($attrs['COMMENT']) ? $attrs['COMMENT'] : ''),
           'billable' => $attrs['BILLABLE'],
+          'approved' => $attrs['APPROVED'],
           'paid' => $attrs['PAID'],
           'status' => $attrs['STATUS']));
         if ($log_item_id) {
@@ -322,6 +330,7 @@ class ttOrgImportHelper {
         $custom_field_id = $this->insertCustomField(array(
           'group_id' => $this->current_group_id,
           'org_id' => $this->org_id,
+          'entity_type' => $attrs['ENTITY_TYPE'],
           'type' => $attrs['TYPE'],
           'label' => $attrs['LABEL'],
           'required' => $attrs['REQUIRED'],
@@ -354,7 +363,7 @@ class ttOrgImportHelper {
           'org_id' => $this->org_id,
           'log_id' => $this->currentGroupLogMap[$attrs['LOG_ID']],
           'field_id' => $this->currentGroupCustomFieldMap[$attrs['FIELD_ID']],
-          'option_id' => $this->currentGroupCustomFieldOptionMap[$attrs['OPTION_ID']],
+          'option_id' => @$this->currentGroupCustomFieldOptionMap[$attrs['OPTION_ID']],
           'value' => $attrs['VALUE'],
           'status' => $attrs['STATUS']))) {
           $this->errors->add($i18n->get('error.db'));
@@ -369,11 +378,13 @@ class ttOrgImportHelper {
           'user_id' => $this->currentGroupUserMap[$attrs['USER_ID']],
           'group_id' => $this->current_group_id,
           'org_id' => $this->org_id,
-          'client_id' => $this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'client_id' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
           'project_id' => $this->currentGroupProjectMap[$attrs['PROJECT_ID']],
+          'timesheet_id' => @$this->currentGroupTimesheetMap[$attrs['TIMESHEET_ID']],
           'name' => $attrs['NAME'],
           'cost' => $attrs['COST'],
-          'invoice_id' => $this->currentGroupInvoiceMap[$attrs['INVOICE_ID']],
+          'invoice_id' => @$this->currentGroupInvoiceMap[$attrs['INVOICE_ID']],
+          'approved' => $attrs['APPROVED'],
           'paid' => $attrs['PAID'],
           'status' => $attrs['STATUS']));
         if (!$expense_item_id) $this->errors->add($i18n->get('error.db'));
@@ -386,6 +397,32 @@ class ttOrgImportHelper {
           'org_id' => $this->org_id,
           'name' => $attrs['NAME'],
           'cost' => $attrs['COST']))) {
+          $this->errors->add($i18n->get('error.db'));
+        }
+        return;
+      }
+
+      if ($name == 'TEMPLATE') {
+        $template_id = $this->insertTemplate(array(
+          'group_id' => $this->current_group_id,
+          'org_id' => $this->org_id,
+          'name' => $attrs['NAME'],
+          'description' => $attrs['DESCRIPTION'],
+          'content' => $attrs['CONTENT'],
+          'status' => $attrs['STATUS']));
+        if ($template_id) {
+          // Add a mapping.
+          $this->currentGroupTemplateMap[$attrs['ID']] = $template_id;
+        } else $this->errors->add($i18n->get('error.db'));
+        return;
+      }
+
+      if ($name == 'PROJECT_TEMPLATE_BIND') {
+        if (!$this->insertProjectTemplateBind(array(
+          'project_id' => $this->currentGroupProjectMap[$attrs['PROJECT_ID']],
+          'template_id' => $this->currentGroupTemplateMap[$attrs['TEMPLATE_ID']],
+          'group_id' => $this->current_group_id,
+          'org_id' => $this->org_id))) {
           $this->errors->add($i18n->get('error.db'));
         }
         return;
@@ -415,11 +452,15 @@ class ttOrgImportHelper {
           'user_id' => $this->currentGroupUserMap[$attrs['USER_ID']],
           'group_id' => $this->current_group_id,
           'org_id' => $this->org_id,
-          'client' => $this->currentGroupClientMap[$attrs['CLIENT_ID']],
-          'option' => $this->currentGroupCustomFieldOptionMap[$attrs['CF_1_OPTION_ID']],
-          'project' => $this->currentGroupProjectMap[$attrs['PROJECT_ID']],
-          'task' => $this->currentGroupTaskMap[$attrs['TASK_ID']],
+          'report_spec' => $this->remapReportSpec($attrs['REPORT_SPEC']),
+          'client' => @$this->currentGroupClientMap[$attrs['CLIENT_ID']],
+          'project' => @$this->currentGroupProjectMap[$attrs['PROJECT_ID']],
+          'task' => @$this->currentGroupTaskMap[$attrs['TASK_ID']],
           'billable' => $attrs['BILLABLE'],
+          'approved' => $attrs['APPROVED'],
+          'invoice' => $attrs['INVOICE'],
+          'timesheet' => $attrs['TIMESHEET'],
+          'paid_status' => $attrs['PAID_STATUS'],
           'users' => $user_list,
           'period' => $attrs['PERIOD'],
           'from' => $attrs['PERIOD_START'],
@@ -429,13 +470,14 @@ class ttOrgImportHelper {
           'chpaid' => (int) $attrs['SHOW_PAID'],
           'chip' => (int) $attrs['SHOW_IP'],
           'chproject' => (int) $attrs['SHOW_PROJECT'],
+          'chtimesheet' => (int) $attrs['SHOW_TIMESHEET'],
           'chstart' => (int) $attrs['SHOW_START'],
           'chduration' => (int) $attrs['SHOW_DURATION'],
           'chcost' => (int) $attrs['SHOW_COST'],
           'chtask' => (int) $attrs['SHOW_TASK'],
           'chfinish' => (int) $attrs['SHOW_END'],
           'chnote' => (int) $attrs['SHOW_NOTE'],
-          'chcf_1' => (int) $attrs['SHOW_CUSTOM_FIELD_1'],
+          'chapproved' => (int) $attrs['SHOW_APPROVED'],
           'chunits' => (int) $attrs['SHOW_WORK_UNITS'],
           'group_by1' => $attrs['GROUP_BY1'],
           'group_by2' => $attrs['GROUP_BY2'],
@@ -459,6 +501,7 @@ class ttOrgImportHelper {
           'email' => $attrs['EMAIL'],
           'cc' => $attrs['CC'],
           'subject' => $attrs['SUBJECT'],
+          'comment' => $attrs['COMMENT'],
           'report_condition' => $attrs['REPORT_CONDITION'],
           'status' => $attrs['STATUS']))) {
           $this->errors->add($i18n->get('error.db'));
@@ -636,14 +679,15 @@ class ttOrgImportHelper {
     global $i18n;
     $mdb2 = getConnection();
 
-    $columns = '(parent_id, org_id, name, description, currency, decimal_mark, lang, date_format, time_format'.
-      ', week_start, tracking_mode, project_required, task_required, record_type, bcc_email'.
-      ', allow_ip, password_complexity, plugins, lock_spec'.
-      ', workday_minutes, config, created, created_ip, created_by)';
+    $columns = '(parent_id, org_id, group_key, name, description, currency, decimal_mark, lang, date_format, time_format,'.
+      ' week_start, tracking_mode, project_required, record_type, bcc_email,'.
+      ' allow_ip, password_complexity, plugins, lock_spec,'.
+      ' workday_minutes, config, custom_css, created, created_ip, created_by)';
 
     $values = ' values (';
     $values .= $mdb2->quote($fields['parent_id']);
     $values .= ', '.$mdb2->quote($fields['org_id']);
+    $values .= ', '.$mdb2->quote(trim($fields['group_key']));
     $values .= ', '.$mdb2->quote(trim($fields['name']));
     $values .= ', '.$mdb2->quote(trim($fields['description']));
     $values .= ', '.$mdb2->quote(trim($fields['currency']));
@@ -654,7 +698,6 @@ class ttOrgImportHelper {
     $values .= ', '.(int)$fields['week_start'];
     $values .= ', '.(int)$fields['tracking_mode'];
     $values .= ', '.(int)$fields['project_required'];
-    $values .= ', '.(int)$fields['task_required'];
     $values .= ', '.(int)$fields['record_type'];
     $values .= ', '.$mdb2->quote($fields['bcc_email']);
     $values .= ', '.$mdb2->quote($fields['allow_ip']);
@@ -663,6 +706,7 @@ class ttOrgImportHelper {
     $values .= ', '.$mdb2->quote($fields['lock_spec']);
     $values .= ', '.(int)$fields['workday_minutes'];
     $values .= ', '.$mdb2->quote($fields['config']);
+    $values .= ', '.$mdb2->quote($fields['custom_css']);
     $values .= ', now(), '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', '.$user->id;
     $values .= ')';
 
@@ -708,6 +752,42 @@ class ttOrgImportHelper {
     return (!is_a($affected, 'PEAR_Error'));
   }
 
+  // insertTemplate - a helper function to insert a template.
+  private function insertTemplate($fields) {
+    $mdb2 = getConnection();
+
+    $group_id = (int) $fields['group_id'];
+    $org_id = (int) $fields['org_id'];
+    $name = $mdb2->quote($fields['name']);
+    $description = $mdb2->quote($fields['description']);
+    $content = $mdb2->quote($fields['content']);
+    $status = $mdb2->quote($fields['status']);
+
+    $sql = "INSERT INTO tt_templates (group_id, org_id, name, description, content, status)".
+      " values ($group_id, $org_id, $name, $description, $content, $status)";
+    $affected = $mdb2->exec($sql);
+    $last_id = 0;
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    $last_id = $mdb2->lastInsertID('tt_templates', 'id');
+    return $last_id;
+  }
+
+  // insertProjectTemplateBind - inserts a project to template bind into tt_project_template_binds table.
+  private function insertProjectTemplateBind($fields) {
+    $mdb2 = getConnection();
+
+    $group_id = (int) $fields['group_id'];
+    $org_id = (int) $fields['org_id'];
+    $project_id = (int) $fields['project_id'];
+    $template_id = (int) $fields['template_id'];
+    $sql = "insert into tt_project_template_binds (project_id, template_id, group_id, org_id)".
+      " values($project_id, $template_id, $group_id, $org_id)";
+    $affected = $mdb2->exec($sql);
+    return (!is_a($affected, 'PEAR_Error'));
+  }
+
   // insertExpense - a helper function to insert an expense item.
   private function insertExpense($fields) {
     global $user;
@@ -723,13 +803,16 @@ class ttOrgImportHelper {
     $cost = str_replace(',', '.', $fields['cost']);
     $invoice_id = $fields['invoice_id'];
     $status = $fields['status'];
+    $approved = (int) $fields['approved'];
     $paid = (int) $fields['paid'];
     $created = ', now(), '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', '.$user->id;
 
     $sql = "insert into tt_expense_items".
-      " (date, user_id, group_id, org_id, client_id, project_id, name, cost, invoice_id, paid, created, created_ip, created_by, status)".
+      " (date, user_id, group_id, org_id, client_id, project_id, name,".
+      " cost, invoice_id, approved, paid, created, created_ip, created_by, status)".
       " values (".$mdb2->quote($date).", $user_id, $group_id, $org_id, ".$mdb2->quote($client_id).", ".$mdb2->quote($project_id).
-      ", ".$mdb2->quote($name).", ".$mdb2->quote($cost).", ".$mdb2->quote($invoice_id).", $paid $created, ".$mdb2->quote($status).")";
+      ", ".$mdb2->quote($name).", ".$mdb2->quote($cost).", ".$mdb2->quote($invoice_id).
+      ", $approved, $paid $created, ".$mdb2->quote($status).")";
     $affected = $mdb2->exec($sql);
     return (!is_a($affected, 'PEAR_Error'));
   }
@@ -743,7 +826,6 @@ class ttOrgImportHelper {
     $org_id = (int) $fields['org_id'];
     $name = $fields['name'];
     $description = $fields['description'];
-    $projects = $fields['projects'];
     $status = $fields['status'];
 
     $sql = "insert into tt_tasks (group_id, org_id, name, description, status)
@@ -855,13 +937,46 @@ class ttOrgImportHelper {
     $rights = $fields['rights'];
     $status = $fields['status'];
 
-    $sql = "insert into tt_roles (group_id, org_id, name, rank, description, rights, status)
+    $sql = "insert into tt_roles (group_id, org_id, name, `rank`, description, rights, status)
       values ($group_id, $org_id, ".$mdb2->quote($name).", $rank, ".$mdb2->quote($description).", ".$mdb2->quote($rights).", ".$mdb2->quote($status).")";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       return false;
 
     $last_id = $mdb2->lastInsertID('tt_roles', 'id');
+    return $last_id;
+  }
+
+  // insertTimesheet - inserts a timesheet in database.
+  private function insertTimesheet($fields)
+  {
+    $mdb2 = getConnection();
+
+    $user_id = (int) $fields['user_id'];
+    $group_id = (int) $fields['group_id'];
+    $org_id = (int) $fields['org_id'];
+    $client_id = $fields['client_id'];
+    $project_id = $fields['project_id'];
+    $name = $fields['name'];
+    $comment = $fields['comment'];
+    $start_date = $fields['start_date'];
+    $end_date = $fields['end_date'];
+    $submit_status = $fields['submit_status'];
+    $approve_status = $fields['approve_status'];
+    $approve_comment = $fields['approve_comment'];
+    $status = $fields['status'];
+
+    // Insert a new timesheet record.
+    $sql = "insert into tt_timesheets (user_id, group_id, org_id, client_id, project_id, name,".
+      " comment, start_date, end_date, submit_status, approve_status, approve_comment, status)".
+      " values($user_id, $group_id, $org_id, ".$mdb2->quote($client_id).", ".$mdb2->quote($project_id).", ".$mdb2->quote($name).", ".
+      $mdb2->quote($comment).", ".$mdb2->quote($start_date).", ".$mdb2->quote($end_date).", ".
+      $mdb2->quote($submit_status).", ".$mdb2->quote($approve_status).", ".
+      $mdb2->quote($approve_comment).", ".$mdb2->quote($status).")";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error')) return false;
+
+    $last_id = $mdb2->lastInsertID('tt_timesheets', 'id');
     return $last_id;
   }
 
@@ -933,23 +1048,25 @@ class ttOrgImportHelper {
     $org_id = (int) $fields['org_id'];
 
     $sql = "insert into tt_fav_reports".
-      " (name, user_id, group_id, org_id, client_id, cf_1_option_id, project_id, task_id,".
-      " billable, invoice, paid_status, users, period, period_start, period_end,".
+      " (name, user_id, group_id, org_id, report_spec, client_id, project_id, task_id,".
+      " billable, approved, invoice, timesheet, paid_status, users, period, period_start, period_end,".
       " show_client, show_invoice, show_paid, show_ip,".
-      " show_project, show_start, show_duration, show_cost,".
-      " show_task, show_end, show_note, show_custom_field_1, show_work_units,".
+      " show_project, show_timesheet, show_start, show_duration, show_cost,".
+      " show_task, show_end, show_note, show_approved, show_work_units,".
       " group_by1, group_by2, group_by3, show_totals_only)".
       " values(".
       $mdb2->quote($fields['name']).", ".$fields['user_id'].", $group_id, $org_id, ".
-      $mdb2->quote($fields['client']).", ".$mdb2->quote($fields['option']).", ".
+      $mdb2->quote($fields['report_spec']).", ".$mdb2->quote($fields['client']).", ".
       $mdb2->quote($fields['project']).", ".$mdb2->quote($fields['task']).", ".
-      $mdb2->quote($fields['billable']).", ".$mdb2->quote($fields['invoice']).", ".
+      $mdb2->quote($fields['billable']).", ".$mdb2->quote($fields['approved']).", ".
+      $mdb2->quote($fields['invoice']).", ".$mdb2->quote($fields['timesheet']).", ".
       $mdb2->quote($fields['paid_status']).", ".
       $mdb2->quote($fields['users']).", ".$mdb2->quote($fields['period']).", ".
       $mdb2->quote($fields['from']).", ".$mdb2->quote($fields['to']).", ".
       $fields['chclient'].", ".$fields['chinvoice'].", ".$fields['chpaid'].", ".$fields['chip'].", ".
-      $fields['chproject'].", ".$fields['chstart'].", ".$fields['chduration'].", ".$fields['chcost'].", ".
-      $fields['chtask'].", ".$fields['chfinish'].", ".$fields['chnote'].", ".$fields['chcf_1'].", ".$fields['chunits'].", ".
+      $fields['chproject'].", ".$fields['chtimesheet'].", ".$fields['chstart'].", ".$fields['chduration'].", ".
+      $fields['chcost'].", ".$fields['chtask'].", ".$fields['chfinish'].", ".$fields['chnote'].", ".
+      $fields['chapproved'].", ".$fields['chunits'].", ".
       $mdb2->quote($fields['group_by1']).", ".$mdb2->quote($fields['group_by2']).", ".
       $mdb2->quote($fields['group_by3']).", ".$fields['chtotalsonly'].")";
     $affected = $mdb2->exec($sql);
@@ -974,12 +1091,13 @@ class ttOrgImportHelper {
     $email = $fields['email'];
     $cc = $fields['cc'];
     $subject = $fields['subject'];
+    $comment = $fields['comment'];
     $report_condition = $fields['report_condition'];
     $status = $fields['status'];
 
     $sql = "insert into tt_cron".
-      " (group_id, org_id, cron_spec, last, next, report_id, email, cc, subject, report_condition, status)".
-      " values ($group_id, $org_id, ".$mdb2->quote($cron_spec).", $last, $next, $report_id, ".$mdb2->quote($email).", ".$mdb2->quote($cc).", ".$mdb2->quote($subject).", ".$mdb2->quote($report_condition).", ".$mdb2->quote($status).")";
+      " (group_id, org_id, cron_spec, last, next, report_id, email, cc, subject, comment, report_condition, status)".
+      " values ($group_id, $org_id, ".$mdb2->quote($cron_spec).", $last, $next, $report_id, ".$mdb2->quote($email).", ".$mdb2->quote($cc).", ".$mdb2->quote($subject).", ".$mdb2->quote($comment).", ".$mdb2->quote($report_condition).", ".$mdb2->quote($status).")";
     $affected = $mdb2->exec($sql);
     return (!is_a($affected, 'PEAR_Error'));
   }
@@ -1007,14 +1125,15 @@ class ttOrgImportHelper {
 
     $group_id = (int) $fields['group_id'];
     $org_id = (int) $fields['org_id'];
+    $entity_type = (int) $fields['entity_type'];
     $type = (int) $fields['type'];
     $label = $fields['label'];
     $required = (int) $fields['required'];
     $status = $fields['status'];
 
     $sql = "insert into tt_custom_fields".
-      " (group_id, org_id, type, label, required, status)".
-      " values($group_id, $org_id, $type, ".$mdb2->quote($label).", $required, ".$mdb2->quote($status).")";
+      " (group_id, org_id, entity_type, type, label, required, status)".
+      " values($group_id, $org_id, $entity_type, $type, ".$mdb2->quote($label).", $required, ".$mdb2->quote($status).")";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       return false;
@@ -1056,15 +1175,17 @@ class ttOrgImportHelper {
     $client_id = $fields['client_id'];
     $project_id = $fields['project_id'];
     $task_id = $fields['task_id'];
+    $timesheet_id = $fields['timesheet_id'];
     $invoice_id = $fields['invoice_id'];
     $comment = $fields['comment'];
     $billable = (int) $fields['billable'];
+    $approved = (int) $fields['approved'];
     $paid = (int) $fields['paid'];
     $status = $fields['status'];
 
     $sql = "insert into tt_log".
-      " (user_id, group_id, org_id, date, start, duration, client_id, project_id, task_id, invoice_id, comment".
-      ", billable, paid, created, created_ip, created_by, status)".
+      " (user_id, group_id, org_id, date, start, duration, client_id, project_id, task_id, timesheet_id, invoice_id, comment".
+      ", billable, approved, paid, created, created_ip, created_by, status)".
       " values ($user_id, $group_id, $org_id".
       ", ".$mdb2->quote($date).
       ", ".$mdb2->quote($start).
@@ -1072,9 +1193,10 @@ class ttOrgImportHelper {
       ", ".$mdb2->quote($client_id).
       ", ".$mdb2->quote($project_id).
       ", ".$mdb2->quote($task_id).
+      ", ".$mdb2->quote($timesheet_id).
       ", ".$mdb2->quote($invoice_id).
       ", ".$mdb2->quote($comment).
-      ", $billable, $paid".
+      ", $billable, $approved, $paid".
       ", now(), ".$mdb2->quote($_SERVER['REMOTE_ADDR']).", ".$user->id.
       ", ". $mdb2->quote($status).")";
     $affected = $mdb2->exec($sql);
@@ -1109,7 +1231,7 @@ class ttOrgImportHelper {
   private function getTopRole() {
     $mdb2 = getConnection();
 
-    $sql = "select id from tt_roles where group_id = 0 and rank = ".MAX_RANK." and status = 1";
+    $sql = "select id from tt_roles where group_id = 0 and `rank` = ".MAX_RANK." and status = 1";
     $res = $mdb2->query($sql);
 
     if (!is_a($res, 'PEAR_Error')) {
@@ -1132,5 +1254,69 @@ class ttOrgImportHelper {
       }
     }
     return false;
+  }
+
+  // isDropdownCustomField is a helper function for remapReportSpecPart.
+  // It deteremines if a custom field is of dropdown type.
+  private function isDropdownCustomField($field_id) {
+    global $user;
+    $mdb2 = getConnection();
+
+    $sql = "select type from tt_custom_fields where id = $field_id";
+    $res = $mdb2->query($sql);
+    $isDropdown = false;
+    if (!is_a($res, 'PEAR_Error')) {
+      while ($val = $res->fetchRow()) {
+        $isDropdown = $val['type'] == 2; // TYPE_DROPDOWN, see CustomFields.class.php.
+        break;
+      }
+    }
+    return $isDropdown;
+  }
+
+  // remapReportSpecPart is a helper function remapReportSpec below.
+  // It remaps a single report spec part.
+  private function remapReportSpecPart($report_spec_part, $prefix) {
+    // Strip prefix.
+    $remainder = substr($report_spec_part, strlen($prefix));
+    // Find colon, which separates field id from its value.
+    $pos = strpos($remainder, ':');
+    $field_id = substr($remainder, 0, $pos);
+    $field_value = substr($remainder, $pos + 1);
+    $mapped_field_id = $this->currentGroupCustomFieldMap[$field_id];
+
+    // Do we need to map option id?
+    if (!ttStartsWith($prefix, 'show_') && $this->isDropdownCustomField($mapped_field_id)) {
+      $mapped_field_value = $this->currentGroupCustomFieldOptionMap[$field_value];
+    } else {
+      $mapped_field_value = $field_value;
+    }
+
+    $mappedPart = $prefix.$mapped_field_id.':'.$mapped_field_value;
+    return $mappedPart;
+  }
+
+  // remapReportSpec takes the source report spec as a parameter.
+  // It remaps it with new custom field and option ids so that it can be used for import.
+  private function remapReportSpec($report_spec) {
+    $remappedSpec = null;
+    $report_spec_parts = explode(',', $report_spec);
+    foreach ($report_spec_parts as $report_spec_part) {
+      if (ttStartsWith($report_spec_part, 'time_field_')) {
+        $remappedSpec .= ','.$this->remapReportSpecPart($report_spec_part, 'time_field_');
+      } elseif (ttStartsWith($report_spec_part, 'show_time_field_')) {
+        $remappedSpec .= ','.$this->remapReportSpecPart($report_spec_part, 'show_time_field_');
+      } elseif (ttStartsWith($report_spec_part, 'user_field_')) {
+        $remappedSpec .= ','.$this->remapReportSpecPart($report_spec_part, 'user_field_');
+      } elseif (ttStartsWith($report_spec_part, 'show_user_field_')) {
+        $remappedSpec .= ','.$this->remapReportSpecPart($report_spec_part, 'show_user_field_');
+      } else {
+        // Use the part as is.
+        $remappedSpec .= ','.$report_spec_part;
+      }
+    }
+    // Trim comma from the beginning.
+    $remappedSpec = ltrim($remappedSpec, ',');
+    return $remappedSpec;
   }
 }

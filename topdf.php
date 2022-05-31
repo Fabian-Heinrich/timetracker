@@ -1,43 +1,20 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 /*
  * This file generates a report in PDF format using TCPDF library from http://www.tcpdf.org/.
  * If installed, it is expected to be in WEB-INF/lib/tcpdf/ folder.
  */
 require_once('initialize.php');
+import('ttConfigHelper');
 import('form.Form');
 import('form.ActionForm');
 import('ttReportHelper');
 import('ttClientHelper');
 
 // Access checks.
-if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports'))) {
+if (!(ttAccessAllowed('view_own_reports') || ttAccessAllowed('view_reports') || ttAccessAllowed('view_all_reports') || ttAccessAllowed('view_client_reports'))) {
   header('Location: access_denied.php');
   exit();
 }
@@ -59,13 +36,18 @@ if ($user->isPluginEnabled('cf')) {
 // Report settings are stored in session bean before we get here.
 $bean = new ActionForm('reportBean', new Form('reportForm'), $request);
 
+$config = new ttConfigHelper($user->getConfig());
+$show_note_column = $bean->getAttribute('chnote') && !$config->getDefinedValue('report_note_on_separate_row');
+$show_note_row = $bean->getAttribute('chnote') && $config->getDefinedValue('report_note_on_separate_row');
+
 // There are 2 variations of report: totals only, or normal. Totals only means that the report
-// is grouped by either date, user, client, project, task or cf_1 and user only needs to see subtotals by group.
+// is grouped by either date, user, client, project, or task and user only needs to see subtotals by group.
 $totals_only = ($bean->getAttribute('chtotalsonly') == '1');
 
 // Obtain items for report.
 $options = ttReportHelper::getReportOptions($bean);
 $grouping = ttReportHelper::grouping($options);
+$items = null;
 if (!$totals_only)
   $items = ttReportHelper::getItems($options); // Individual entries.
 if ($totals_only || $grouping)
@@ -168,21 +150,38 @@ if ($totals_only) {
   
   $html .= '<td>'.$i18n->get('label.date').'</td>';
   if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) { $colspan++; $html .= '<td>'.$i18n->get('label.user').'</td>'; }
+  // User custom field labels.
+  if (isset($custom_fields) && $custom_fields->userFields) {
+    foreach ($custom_fields->userFields as $userField) {
+      $field_name = 'user_field_'.$userField['id'];
+      $checkbox_control_name = 'show_'.$field_name;
+      if ($bean->getAttribute($checkbox_control_name)) { $colspan++; $html .= '<td>'.htmlspecialchars($userField['label']).'</td>'; }
+    }
+  }
   if ($bean->getAttribute('chclient')) { $colspan++; $html .= '<td>'.$i18n->get('label.client').'</td>'; }
   if ($bean->getAttribute('chclientnumber')) { $colspan++; $html .= '<td>'.$i18n->get('label.client_number').'</td>'; }
   if ($bean->getAttribute('chproject')) { $colspan++; $html .= '<td>'.$i18n->get('label.project').'</td>'; }
   if ($bean->getAttribute('chtask')) { $colspan++; $html .= '<td>'.$i18n->get('label.task').'</td>'; }
-  if ($bean->getAttribute('chcf_1')) { $colspan++; $html .= '<td>'.htmlspecialchars($custom_fields->fields[0]['label']).'</td>'; }
+  // Time custom field labels.
+  if (isset($custom_fields) && $custom_fields->timeFields) {
+    foreach ($custom_fields->timeFields as $timeField) {
+      $field_name = 'time_field_'.$timeField['id'];
+      $checkbox_control_name = 'show_'.$field_name;
+      if ($bean->getAttribute($checkbox_control_name)) { $colspan++; $html .= '<td>'.htmlspecialchars($timeField['label']).'</td>'; }
+    }
+  }
   if ($bean->getAttribute('chstart')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.start').'</td>'; }
   if ($bean->getAttribute('chfinish')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.finish').'</td>'; }
   if ($bean->getAttribute('chduration')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.duration').'</td>'; }
   if ($bean->getAttribute('chunits')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.work_units_short').'</td>'; }
-  if ($bean->getAttribute('chnote')) { $colspan++; $html .= '<td>'.$i18n->get('label.note').'</td>'; }
+  if ($show_note_column) { $colspan++; $html .= '<td>'.$i18n->get('label.note').'</td>'; }
   if ($bean->getAttribute('chcost')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.cost').'</td>'; }
+  if ($bean->getAttribute('chapproved')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.approved').'</td>'; }
   if ($bean->getAttribute('chpaid')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.paid').'</td>'; }
   if ($bean->getAttribute('chip')) { $colspan++; $html .= "<td $styleCentered>".$i18n->get('label.ip').'</td>'; }
   if ($bean->getAttribute('chinvoice')) { $colspan++; $html .= '<td>'.$i18n->get('label.invoice').'</td>'; }
   if ($bean->getAttribute('chbillable')) { $colspan++; $html .= "<td $styleThinner>".$i18n->get('label.billable').'</td>'; }
+  if ($bean->getAttribute('chtimesheet')) { $colspan++; $html .= '<td>'.$i18n->get('label.timesheet').'</td>'; }
 
   $html .= '</tr>';
   $html .= '</thead>';
@@ -199,6 +198,14 @@ if ($totals_only) {
             $html .= '<td>';
             $html .= htmlspecialchars($subtotals[$prev_grouped_by]['user']);
             $html .= '</td>';
+        }
+        // User custom fields.
+        if (isset($custom_fields) && $custom_fields->userFields) {
+          foreach ($custom_fields->userFields as $userField) {
+            $field_name = 'user_field_'.$userField['id'];
+            $checkbox_control_name = 'show_'.$field_name;
+            if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+          }
         }
         if ($bean->getAttribute('chclient')) {
             $html .= '<td>';
@@ -218,16 +225,19 @@ if ($totals_only) {
             $html .= htmlspecialchars($subtotals[$prev_grouped_by]['task']);
             $html .= '</td>';
         }
-        if ($bean->getAttribute('chcf_1')) {
-            $html .= '<td>';
-            $html .= htmlspecialchars($subtotals[$prev_grouped_by]['cf_1']);
-            $html .= '</td>';
+        // Time custom fields.
+        if (isset($custom_fields) && $custom_fields->timeFields) {
+          foreach ($custom_fields->timeFields as $timeField) {
+            $field_name = 'time_field_'.$timeField['id'];
+            $checkbox_control_name = 'show_'.$field_name;
+            if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+          }
         }
         if ($bean->getAttribute('chstart')) $html .= '<td></td>';
         if ($bean->getAttribute('chfinish')) $html .= '<td></td>';
         if ($bean->getAttribute('chduration')) $html .= "<td $styleRightAligned>".$subtotals[$prev_grouped_by]['time'].'</td>';
         if ($bean->getAttribute('chunits')) $html .= "<td $styleRightAligned>".$subtotals[$prev_grouped_by]['units'].'</td>';
-        if ($bean->getAttribute('chnote')) $html .= '<td></td>';
+        if ($show_note_column) $html .= '<td></td>';
         if ($bean->getAttribute('chcost')) {
           $html .= "<td $styleRightAligned>";
           if ($user->can('manage_invoices') || $user->isClient())
@@ -236,30 +246,57 @@ if ($totals_only) {
             $html .= $subtotals[$prev_grouped_by]['expenses'];
           $html .= '</td>';
         }
+        if ($bean->getAttribute('chapproved')) $html .= '<td></td>';
         if ($bean->getAttribute('chpaid')) $html .= '<td></td>';
         if ($bean->getAttribute('chip')) $html .= '<td></td>';
         if ($bean->getAttribute('chinvoice')) $html .= '<td></td>';
         if ($bean->getAttribute('chbillable')) $html .= '<td></td>';
+        if ($bean->getAttribute('chtimesheet')) $html .= '<td></td>';
+		
         $html .= '</tr>';
         $html .= '<tr><td colspan="'.$colspan.'">&nbsp;</td></tr>';
+        // TODO: page breaks on PDF reports is a rarely used feature.
+        // Currently without configuration capability.
+        // Consider adding an option to user profile instead.
+        if (isTrue('PDF_REPORT_PAGE_BREAKS')) {
+          import('ttUserConfig');
+          $uc = new ttUserConfig();
+          $use_breaks = $uc->getValue(SYSC_PDF_REPORT_PAGE_BREAKS);
+          if ($use_breaks) $html .= '<br pagebreak="true"/>';
+        }
       }
-      $first_pass = false; 
+      $first_pass = false;
     }
 
     // Print a regular row.
     $html .= '<tr>';
     $html .= '<td>'.$item['date'].'</td>';
     if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) $html .= '<td>'.htmlspecialchars($item['user']).'</td>';
+    // User custom fields.
+    if (isset($custom_fields) && $custom_fields->userFields) {
+      foreach ($custom_fields->userFields as $userField) {
+        $field_name = 'user_field_'.$userField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) $html .= '<td>'.htmlspecialchars($item[$field_name]).'</td>';
+      }
+    }
     if ($bean->getAttribute('chclient')) $html .= '<td>'.htmlspecialchars($item['client']).'</td>';
     if ($bean->getAttribute('chclientnumber')) $html .= '<td>'.htmlspecialchars($item['client_number']).'</td>';
     if ($bean->getAttribute('chproject')) $html .= '<td>'.htmlspecialchars($item['project']).'</td>';
     if ($bean->getAttribute('chtask')) $html .= '<td>'.htmlspecialchars($item['task']).'</td>';
-    if ($bean->getAttribute('chcf_1')) $html .= '<td>'.htmlspecialchars($item['cf_1']).'</td>';
-    if ($bean->getAttribute('chstart')) $html .= "<td $styleRightAligned $styleThinner>".$item['start'].'</td>';
-    if ($bean->getAttribute('chfinish')) $html .= "<td $styleRightAligned $styleThinner>".$item['finish'].'</td>';
-    if ($bean->getAttribute('chduration')) $html .= "<td $styleRightAligned $styleThinner>".$item['duration'].'</td>';
+    // Time custom fields.
+    if (isset($custom_fields) && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) $html .= '<td>'.htmlspecialchars($item[$field_name]).'</td>';
+      }
+    }
+    if ($bean->getAttribute('chstart')) $html .= "<td $styleRightAligned>".$item['start'].'</td>';
+    if ($bean->getAttribute('chfinish')) $html .= "<td $styleRightAligned>".$item['finish'].'</td>';
+    if ($bean->getAttribute('chduration')) $html .= "<td $styleRightAligned>".$item['duration'].'</td>';
     if ($bean->getAttribute('chunits')) $html .= "<td $styleRightAligned>".$item['units'].'</td>';
-    if ($bean->getAttribute('chnote')) $html .= "<td $styleWider>".htmlspecialchars($item['note']).'</td>';
+    if ($show_note_column) $html .= '<td>'.htmlspecialchars($item['note']).'</td>';
     if ($bean->getAttribute('chcost')) {
       $html .= "<td $styleRightAligned>";
       if ($user->can('manage_invoices') || $user->isClient())
@@ -267,6 +304,11 @@ if ($totals_only) {
       else
         $html .= $item['expense'];
       $html .= '</td>';
+    }
+    if ($bean->getAttribute('chapproved')) {
+        $html .= '<td>';
+        $html .= $item['approved'] == 1 ? $i18n->get('label.yes') : $i18n->get('label.no');
+        $html .= '</td>';
     }
     if ($bean->getAttribute('chpaid')) {
         $html .= '<td>';
@@ -280,7 +322,16 @@ if ($totals_only) {
     }
     if ($bean->getAttribute('chinvoice')) $html .= '<td>'.htmlspecialchars($item['invoice']).'</td>';
     if ($bean->getAttribute('chbillable')) $html .= "<td $styleThinner>".htmlspecialchars($item['billable']).'</td>';
+    if ($bean->getAttribute('chtimesheet')) $html .= '<td>'.htmlspecialchars($item['timesheet_name']).'</td>';
     $html .= '</tr>';
+
+    if ($show_note_row && $item['note']) {
+      $html .= '<tr>';
+      $html .= "<td $styleRightAligned>".$i18n->get('label.note').'</td>';
+      $noteSpan = $colspan-1;
+      $html .= '<td colspan="'.$noteSpan.'">'.htmlspecialchars($item['note']).'</td>';
+      $html .= '</tr>';
+    }
 
     $prev_date = $item['date'];
     if ($print_subtotals) $prev_grouped_by = $item['grouped_by'];
@@ -294,6 +345,14 @@ if ($totals_only) {
       $html .= '<td>';
       $html .= htmlspecialchars($subtotals[$prev_grouped_by]['user']);
       $html .= '</td>';
+    }
+    // User custom fields.
+    if (isset($custom_fields) && $custom_fields->userFields) {
+      foreach ($custom_fields->userFields as $userField) {
+        $field_name = 'user_field_'.$userField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+      }
     }
     if ($bean->getAttribute('chclient')) {
       $html .= '<td>';
@@ -313,16 +372,19 @@ if ($totals_only) {
       $html .= htmlspecialchars($subtotals[$prev_grouped_by]['task']);
       $html .= '</td>';
     }
-    if ($bean->getAttribute('chcf_1')) {
-      $html .= '<td>';
-      $html .= htmlspecialchars($subtotals[$prev_grouped_by]['cf_1']);
-      $html .= '</td>';
+    // Time custom fields.
+    if (isset($custom_fields) && $custom_fields->timeFields) {
+      foreach ($custom_fields->timeFields as $timeField) {
+        $field_name = 'time_field_'.$timeField['id'];
+        $checkbox_control_name = 'show_'.$field_name;
+        if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+      }
     }
     if ($bean->getAttribute('chstart')) $html .= '<td></td>';
     if ($bean->getAttribute('chfinish')) $html .= '<td></td>';
     if ($bean->getAttribute('chduration')) $html .= "<td $styleRightAligned>".$subtotals[$prev_grouped_by]['time'].'</td>';
     if ($bean->getAttribute('chunits')) $html .= "<td $styleRightAligned>".$subtotals[$prev_grouped_by]['units'].'</td>';
-    if ($bean->getAttribute('chnote')) $html .= '<td></td>';
+    if ($show_note_column) $html .= '<td></td>';
     if ($bean->getAttribute('chcost')) {
       $html .= "<td $styleRightAligned>";
       if ($user->can('manage_invoices') || $user->isClient())
@@ -331,10 +393,13 @@ if ($totals_only) {
         $html .= $subtotals[$prev_grouped_by]['expenses'];
       $html .= '</td>';
     }
+    if ($bean->getAttribute('chapproved')) $html .= '<td></td>';
     if ($bean->getAttribute('chpaid')) $html .= '<td></td>';
     if ($bean->getAttribute('chip')) $html .= '<td></td>';
     if ($bean->getAttribute('chinvoice')) $html .= '<td></td>';
     if ($bean->getAttribute('chbillable')) $html .= '<td></td>';
+    if ($bean->getAttribute('chtimesheet')) $html .= '<td></td>';
+
     $html .= '</tr>';
   }
 
@@ -343,16 +408,31 @@ if ($totals_only) {
   $html .= '<tr style="background-color:#e0e0e0;">';
   $html .= '<td>'.$i18n->get('label.total').'</td>';
   if ($user->can('view_reports') || $user->can('view_all_reports') || $user->isClient()) $html .= '<td></td>';
+  // User custom fields.
+  if (isset($custom_fields) && $custom_fields->userFields) {
+    foreach ($custom_fields->userFields as $userField) {
+      $field_name = 'user_field_'.$userField['id'];
+      $checkbox_control_name = 'show_'.$field_name;
+      if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+    }
+  }
   if ($bean->getAttribute('chclient')) $html .= '<td></td>';
   if ($bean->getAttribute('chclientnumber')) $html .= '<td></td>';
   if ($bean->getAttribute('chproject')) $html .= '<td></td>';
   if ($bean->getAttribute('chtask')) $html .= '<td></td>';
-  if ($bean->getAttribute('chcf_1')) $html .= '<td></td>';
+  // Time custom fields.
+  if (isset($custom_fields) && $custom_fields->timeFields) {
+    foreach ($custom_fields->timeFields as $timeField) {
+      $field_name = 'time_field_'.$timeField['id'];
+      $checkbox_control_name = 'show_'.$field_name;
+      if ($bean->getAttribute($checkbox_control_name)) $html .= '<td></td>';
+    }
+  }
   if ($bean->getAttribute('chstart')) $html .= '<td></td>';
   if ($bean->getAttribute('chfinish')) $html .= '<td></td>';
   if ($bean->getAttribute('chduration')) $html .= "<td $styleRightAligned>".$totals['time'].'</td>';
   if ($bean->getAttribute('chunits')) $html .= "<td $styleRightAligned>".$totals['units'].'</td>';
-  if ($bean->getAttribute('chnote')) $html .= '<td></td>';
+  if ($show_note_column) $html .= '<td></td>';
   if ($bean->getAttribute('chcost')) {
     $html .= "<td $styleRightAligned>".htmlspecialchars($user->currency).' ';
     if ($user->can('manage_invoices') || $user->isClient())
@@ -361,10 +441,13 @@ if ($totals_only) {
       $html .= $totals['expenses'];
     $html .= '</td>';
   }
+  if ($bean->getAttribute('chapproved')) $html .= '<td></td>';
   if ($bean->getAttribute('chpaid')) $html .= '<td></td>';
   if ($bean->getAttribute('chip')) $html .= '<td></td>';
   if ($bean->getAttribute('chinvoice')) $html .= '<td></td>';
   if ($bean->getAttribute('chbillable')) $html .= '<td></td>';
+  if ($bean->getAttribute('chtimesheet')) $html .= '<td></td>';
+
   $html .= '</tr>';
   $html .= '</table>';
 }
@@ -394,7 +477,7 @@ header('Content-Disposition: attachment; filename="'.$filename.'.pdf"');
 // Extend TCPDF class so that we can use custom header and footer.
 class ttPDF extends TCPDF {
 
-  public $image_file = 'images/tt_logo.png'; // Image file for the logo in header.
+  public $image_file = 'img/logo.png'; // Image file for the logo in header.
   public $page_word = 'Page'; // Localized "Page" word in footer, ex: Page 1/2.
 
   // SetImageFile - sets image file name.
@@ -428,8 +511,8 @@ class ttPDF extends TCPDF {
 $pdf = new ttPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
 // If custom logo file exists - set it.
-if (file_exists('images/'.$user->group_id.'.png'))
-  $pdf->SetImageFile('images/'.$user->group_id.'.png');
+if (file_exists('img/'.$user->group_id.'.png'))
+  $pdf->SetImageFile('img/'.$user->group_id.'.png');
 
 // Set page word for the footer.
 $pdf->SetPageWord($i18n->get('label.page'));

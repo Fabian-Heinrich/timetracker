@@ -16,6 +16,7 @@ CREATE TABLE `tt_groups` (
   `id` int(11) NOT NULL auto_increment,                  # group id
   `parent_id` int(11) default NULL,                      # parent group id
   `org_id` int(11) default NULL,                         # organization id (id of top group)
+  `group_key` varchar(32) default NULL,                  # group key
   `name` varchar(80) default NULL,                       # group name
   `description` varchar(255) default NULL,               # group description
   `currency` varchar(7) default NULL,                    # currency symbol
@@ -26,7 +27,6 @@ CREATE TABLE `tt_groups` (
   `week_start` smallint(2) NOT NULL default 0,           # Week start day, 0 == Sunday.
   `tracking_mode` smallint(2) NOT NULL default 1,        # tracking mode ("time", "projects" or "projects and tasks")
   `project_required` smallint(2) NOT NULL default 0,     # whether a project selection is required or optional
-  `task_required` smallint(2) NOT NULL default 0,        # whether a task selection is required or optional
   `record_type` smallint(2) NOT NULL default 0,          # time record type ("start and finish", "duration", or both)
   `bcc_email` varchar(100) default NULL,                 # bcc email to copy all reports to
   `allow_ip` varchar(255) default NULL,                  # specification from where users are allowed access
@@ -34,15 +34,18 @@ CREATE TABLE `tt_groups` (
   `plugins` varchar(255) default NULL,                   # a list of enabled plugins for group
   `lock_spec` varchar(255) default NULL,                 # Cron specification for record locking,
                                                          # for example: "0 10 * * 1" for "weekly on Mon at 10:00".
+  `holidays` text default NULL,                          # holidays specification
   `workday_minutes` smallint(4) default 480,             # number of work minutes in a regular working day
   `custom_logo` tinyint(4) default 0,                    # whether to use a custom logo or not
   `config` text default NULL,                            # miscellaneous group configuration settings
+  `custom_css` text default NULL,                        # custom css for group
   `created` datetime default NULL,                       # creation timestamp
   `created_ip` varchar(45) default NULL,                 # creator ip
   `created_by` int(11) default NULL,                     # creator user_id
   `modified` datetime default NULL,                      # modification timestamp
   `modified_ip` varchar(45) default NULL,                # modifier ip
   `modified_by` int(11) default NULL,                    # modifier user_id
+  `entities_modified` datetime default NULL,             # modification timestamp of group entities (clients, projects, etc.)
   `status` tinyint(4) default 1,                         # group status
   PRIMARY KEY (`id`)
 );
@@ -71,11 +74,11 @@ CREATE TABLE `tt_roles` (
 );
 
 # Create an index that guarantees unique active and inactive role ranks in each group.
-create unique index role_idx on tt_roles(group_id, rank, status);
+create unique index role_idx on tt_roles(group_id, `rank`, status);
 
 # Insert site-wide roles - site administrator and top manager.
 INSERT INTO `tt_roles` (`group_id`, `name`, `rank`, `rights`) VALUES (0, 'Site administrator', 1024, 'administer_site');
-INSERT INTO `tt_roles` (`group_id`, `name`, `rank`, `rights`) VALUES (0, 'Top manager', 512, 'track_own_time,track_own_expenses,view_own_reports,view_own_charts,view_own_invoices,view_own_projects,view_own_tasks,manage_own_settings,view_users,track_time,track_expenses,view_reports,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,approve_timesheets,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_reports,manage_features,manage_advanced_settings,manage_roles,export_data,manage_subgroups,delete_group');
+INSERT INTO `tt_roles` (`group_id`, `name`, `rank`, `rights`) VALUES (0, 'Top manager', 512, 'track_own_time,track_own_expenses,view_own_reports,view_own_charts,view_own_projects,view_own_tasks,manage_own_settings,view_users,view_client_reports,view_client_invoices,track_time,track_expenses,view_reports,approve_reports,approve_timesheets,view_charts,view_own_clients,override_punch_mode,override_own_punch_mode,override_date_lock,override_own_date_lock,swap_roles,manage_own_account,manage_users,manage_projects,manage_tasks,manage_custom_fields,manage_clients,manage_invoices,override_allow_ip,manage_basic_settings,view_all_charts,view_all_reports,manage_features,manage_advanced_settings,manage_roles,export_data,approve_all_reports,approve_own_timesheets,manage_subgroups,view_client_unapproved,override_2fa,delete_group');
 
 
 #
@@ -110,7 +113,7 @@ create unique index login_idx on tt_users(login, status);
 
 # Create admin account with password 'secret'. Admin is a superuser who can create groups.
 DELETE from `tt_users` WHERE login = 'admin';
-INSERT INTO `tt_users` (`login`, `password`, `name`, `group_id`, `role_id`) VALUES ('admin', md5('secret'), 'Admin', '0', (select id from tt_roles where rank = 1024));
+INSERT INTO `tt_users` (`login`, `password`, `name`, `group_id`, `role_id`) VALUES ('admin', md5('secret'), 'Admin', '0', (select id from tt_roles where `rank` = 1024));
 
 
 #
@@ -197,9 +200,11 @@ CREATE TABLE `tt_log` (
   `client_id` int(11) default NULL,                # client id
   `project_id` int(11) default NULL,               # project id
   `task_id` int(11) default NULL,                  # task id
+  `timesheet_id` int(11) default NULL,             # timesheet id
   `invoice_id` int(11) default NULL,               # invoice id
   `comment` text,                                  # user provided comment for time record
   `billable` tinyint(4) default 0,                 # whether the record is billable or not
+  `approved` tinyint(4) default 0,                 # whether the record is approved
   `paid` tinyint(4) default 0,                     # whether the record is paid
   `created` datetime default NULL,                 # creation timestamp
   `created_ip` varchar(45) default NULL,           # creator ip
@@ -219,6 +224,7 @@ create index client_idx on tt_log(client_id);
 create index invoice_idx on tt_log(invoice_id);
 create index project_idx on tt_log(project_id);
 create index task_idx on tt_log(task_id);
+create index timesheet_idx on tt_log(timesheet_id);
 
 
 #
@@ -260,11 +266,12 @@ CREATE TABLE `tt_fav_reports` (
   `org_id` int(11) default NULL,                         # organization id
   `report_spec` text default NULL,                       # future replacement field for all report settings
   `client_id` int(11) default NULL,                      # client id (if selected)
-  `cf_1_option_id` int(11) default NULL,                 # custom field 1 option id (if selected)
   `project_id` int(11) default NULL,                     # project id (if selected)
   `task_id` int(11) default NULL,                        # task id (if selected)
   `billable` tinyint(4) default NULL,                    # whether to include billable, not billable, or all records
+  `approved` tinyint(4) default NULL,                    # whether to include approved, unapproved, or all records
   `invoice` tinyint(4) default NULL,                     # whether to include invoiced, not invoiced, or all records
+  `timesheet` tinyint(4) default NULL,                   # include records with a specific timesheet status, or all records
   `paid_status` tinyint(4) default NULL,                 # whether to include paid, not paid, or all records
   `users` text default NULL,                             # Comma-separated list of user ids. Nothing here means "all" users.
   `period` tinyint(4) default NULL,                      # selected period type for report
@@ -275,6 +282,7 @@ CREATE TABLE `tt_fav_reports` (
   `show_paid` tinyint(4) NOT NULL default 0,             # whether to show paid column
   `show_ip` tinyint(4) NOT NULL default 0,               # whether to show ip column
   `show_project` tinyint(4) NOT NULL default 0,          # whether to show project column
+  `show_timesheet` tinyint(4) NOT NULL default 0,        # whether to show timesheet column
   `show_start` tinyint(4) NOT NULL default 0,            # whether to show start field
   `show_duration` tinyint(4) NOT NULL default 0,         # whether to show duration field
   `show_cost` tinyint(4) NOT NULL default 0,             # whether to show cost field
@@ -284,6 +292,7 @@ CREATE TABLE `tt_fav_reports` (
   `show_billable` tinyint(4) NOT NULL default 0,         # whether to show billable column
   `show_client_number` tinyint(4) NOT NULL default 0,    # whether to show client number column
   `show_custom_field_1` tinyint(4) NOT NULL default 0,   # whether to show custom field 1
+  `show_approved` tinyint(4) NOT NULL default 0,         # whether to show approved column
   `show_work_units` tinyint(4) NOT NULL default 0,       # whether to show work units
   `show_totals_only` tinyint(4) NOT NULL default 0,      # whether to show totals only
   `group_by1` varchar(20) default NULL,                  # group by field 1
@@ -308,6 +317,7 @@ CREATE TABLE `tt_cron` (
   `email` varchar(100) default NULL,            # email to send results to
   `cc` varchar(100) default NULL,               # cc email to send results to
   `subject` varchar(100) default NULL,          # email subject
+  `comment` text,                               # user provided comment for notification
   `report_condition` varchar(255) default NULL, # report condition, "count > 0" for sending not empty reports
   `status` tinyint(4) default 1,                # entry status
   PRIMARY KEY (`id`)
@@ -375,6 +385,7 @@ CREATE TABLE `tt_custom_fields` (
   `id` int(11) NOT NULL auto_increment,    # custom field id
   `group_id` int(11) NOT NULL,             # group id
   `org_id` int(11) default NULL,           # organization id
+  `entity_type` tinyint(4) default 1,      # type of entity custom field is associated with (time, user, project, task, etc.)
   `type` tinyint(4) NOT NULL default 0,    # custom field type (text or dropdown)
   `label` varchar(32) NOT NULL default '', # custom field label
   `required` tinyint(4) default 0,         # whether this custom field is mandatory for time records
@@ -417,6 +428,36 @@ create index log_idx on tt_custom_field_log(log_id);
 
 
 #
+# Structure for table tt_entity_custom_fields.
+# This table stores custom field values for entities such as users and projects
+# except for "time" entity (and possibly "expense" in future).
+# "time" custom fields are kept separately in tt_custom_field_log
+# because tt_log (and tt_custom_field_log) can grow very large.
+#
+CREATE TABLE `tt_entity_custom_fields` (
+  `id` int(10) unsigned NOT NULL auto_increment, # record id in this table
+  `group_id` int(10) unsigned NOT NULL,          # group id
+  `org_id` int(10) unsigned NOT NULL,            # organization id
+  `entity_type` tinyint(4) NOT NULL,             # entity type
+  `entity_id` int(10) unsigned NOT NULL,         # entity id this record corresponds to
+  `field_id` int(10) unsigned NOT NULL,          # custom field id
+  `option_id` int(10) unsigned default NULL,     # Option id. Used for dropdown custom fields.
+  `value` varchar(255) default NULL,             # Text value. Used for text custom fields.
+  `created` datetime default NULL,               # creation timestamp
+  `created_ip` varchar(45) default NULL,         # creator ip
+  `created_by` int(10) unsigned default NULL,    # creator user_id
+  `modified` datetime default NULL,              # modification timestamp
+  `modified_ip` varchar(45) default NULL,        # modifier ip
+  `modified_by` int(10) unsigned default NULL,   # modifier user_id
+  `status` tinyint(4) default 1,                 # record status
+  PRIMARY KEY  (`id`)
+);
+
+# Create an index that guarantees unique custom fields per entity.
+create unique index entity_idx on tt_entity_custom_fields(entity_type, entity_id, field_id);
+
+
+#
 # Structure for table tt_expense_items.
 # This table lists expense items.
 #
@@ -431,6 +472,7 @@ CREATE TABLE `tt_expense_items` (
   `name` text NOT NULL,                   # expense item name (what is an expense for)
   `cost` decimal(10,2) default '0.00',    # item cost (including taxes, etc.)
   `invoice_id` int(11) default NULL,      # invoice id
+  `approved` tinyint(4) default 0,        # whether the item is approved
   `paid` tinyint(4) default 0,            # whether the item is paid
   `created` datetime default NULL,        # creation timestamp
   `created_ip` varchar(45) default NULL,  # creator ip
@@ -480,6 +522,97 @@ CREATE TABLE `tt_monthly_quotas` (
 
 
 #
+# Structure for table tt_timesheets. This table keeps timesheet related information.
+#
+CREATE TABLE `tt_timesheets` (
+  `id` int(11) NOT NULL auto_increment,            # timesheet id
+  `user_id` int(11) NOT NULL,                      # user id
+  `group_id` int(11) default NULL,                 # group id
+  `org_id` int(11) default NULL,                   # organization id
+  `client_id` int(11) default NULL,                # client id
+  `project_id` int(11) default NULL,               # project id
+  `name` varchar(80) COLLATE utf8mb4_bin NOT NULL, # timesheet name
+  `comment` text,                                  # timesheet comment
+  `start_date` date NOT NULL,                      # timesheet start date
+  `end_date` date NOT NULL,                        # timesheet end date
+  `submit_status` tinyint(4) default NULL,         # submit status
+  `approve_status` tinyint(4) default NULL,        # approve status
+  `approve_comment` text,                          # approve comment
+  `created` datetime default NULL,                 # creation timestamp
+  `created_ip` varchar(45) default NULL,           # creator ip
+  `created_by` int(11) default NULL,               # creator user_id
+  `modified` datetime default NULL,                # modification timestamp
+  `modified_ip` varchar(45) default NULL,          # modifier ip
+  `modified_by` int(11) default NULL,              # modifier user_id
+  `status` tinyint(4) default 1,                   # timesheet status
+  PRIMARY KEY (`id`)
+);
+
+
+#
+# Structure for table tt_templates.
+# This table keeps templates used in groups.
+#
+CREATE TABLE `tt_templates` (
+  `id` int(11) NOT NULL auto_increment,   # template id
+  `group_id` int(11) default NULL,        # group id
+  `org_id` int(11) default NULL,          # organization id
+  `name` varchar(80) COLLATE utf8mb4_bin NOT NULL, # template name
+  `description` varchar(255) default NULL,         # template description
+  `content` text,                         # template content
+  `created` datetime default NULL,        # creation timestamp
+  `created_ip` varchar(45) default NULL,  # creator ip
+  `created_by` int(11) default NULL,      # creator user_id
+  `modified` datetime default NULL,       # modification timestamp
+  `modified_ip` varchar(45) default NULL, # modifier ip
+  `modified_by` int(11) default NULL,     # modifier user_id
+  `status` tinyint(4) default 1,          # template status
+  PRIMARY KEY  (`id`)
+);
+
+
+#
+# Structure for table tt_project_template_binds. This table maps projects to templates.
+#
+CREATE TABLE `tt_project_template_binds` (
+  `project_id` int(10) unsigned NOT NULL,        # project id
+  `template_id` int(10) unsigned NOT NULL,       # template id
+  `group_id` int(10) unsigned NOT NULL,          # group id
+  `org_id` int(10) unsigned NOT NULL             # organization id
+);
+
+# Indexes for tt_project_template_binds.
+create index project_idx on tt_project_template_binds(project_id);
+create index template_idx on tt_project_template_binds(template_id);
+create unique index project_template_idx on tt_project_template_binds(project_id, template_id);
+
+
+#
+# Structure for table tt_files.
+# This table keeps file attachment information.
+#
+CREATE TABLE `tt_files` (
+  `id` int(10) unsigned NOT NULL auto_increment, # file id
+  `group_id` int(10) unsigned,                   # group id
+  `org_id` int(10) unsigned,                     # organization id
+  `remote_id` bigint(20) unsigned,               # file id in storage facility
+  `file_key` varchar(32),                        # file key
+  `entity_type` varchar(32),                     # type of entity file is associated with (project, task, etc.)
+  `entity_id` int(10) unsigned,                  # entity id
+  `file_name` varchar(80) COLLATE utf8mb4_bin NOT NULL, # file name
+  `description` varchar(255) default NULL,       # file description
+  `created` datetime default NULL,               # creation timestamp
+  `created_ip` varchar(45) default NULL,         # creator ip
+  `created_by` int(10) unsigned,                 # creator user_id
+  `modified` datetime default NULL,              # modification timestamp
+  `modified_ip` varchar(45) default NULL,        # modifier ip
+  `modified_by` int(10) unsigned,                # modifier user_id
+  `status` tinyint(1) default 1,                 # file status
+  PRIMARY KEY  (`id`)
+);
+
+
+#
 # Structure for table tt_site_config. This table stores configuration data
 # for Time Tracker site as a whole.
 # For example, database version, code version, site language, etc.
@@ -492,4 +625,4 @@ CREATE TABLE `tt_site_config` (
   PRIMARY KEY  (`param_name`)
 );
 
-INSERT INTO `tt_site_config` (`param_name`, `param_value`, `created`) VALUES ('version_db', '1.18.36', now()); # TODO: change when structure changes.
+INSERT INTO `tt_site_config` (`param_name`, `param_value`, `created`) VALUES ('version_db', '1.21.2', now()); # TODO: change when structure changes.

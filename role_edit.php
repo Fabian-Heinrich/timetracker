@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -60,20 +36,20 @@ if ($request->isPost()) {
 
 $form = new Form('roleForm');
 $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$cl_role_id));
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','style'=>'width: 250px;','value'=>$cl_name));
-$form->addInput(array('type'=>'textarea','name'=>'description','style'=>'width: 250px; height: 40px;','value'=>$cl_description));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','value'=>$cl_name));
+$form->addInput(array('type'=>'textarea','name'=>'description','value'=>$cl_description));
 for ($i = 0; $i < $user->rank; $i++) {
   $rank_data[] = $i;
 }
-$form->addInput(array('type'=>'combobox','name'=>'rank','data'=>$rank_data,'value'=>$cl_rank));
+$form->addInput(array('type'=>'combobox','class'=>'dropdown-field-short','name'=>'rank','data'=>$rank_data,'value'=>$cl_rank));
 $form->addInput(array('type'=>'combobox','name'=>'status','value'=>$cl_status,
   'data'=>array(ACTIVE=>$i18n->get('dropdown.status_active'),INACTIVE=>$i18n->get('dropdown.status_inactive'))));
 $form->addInput(array('type'=>'submit','name'=>'btn_save','value'=>$i18n->get('button.save')));
 
 // Multiple select controls for assigned and available rights.
-$form->addInput(array('type'=>'combobox','name'=>'assigned_rights','style'=>'width: 250px;','multiple'=>true,'data'=>$assigned_rights));
+$form->addInput(array('type'=>'combobox','name'=>'assigned_rights','multiple'=>true,'data'=>$assigned_rights));
 $form->addInput(array('type'=>'submit','name'=>'btn_delete','value'=>$i18n->get('button.delete')));
-$form->addInput(array('type'=>'combobox','name'=>'available_rights','style'=>'width: 250px;','multiple'=>true,'data'=>$available_rights));
+$form->addInput(array('type'=>'combobox','name'=>'available_rights','multiple'=>true,'data'=>$available_rights));
 $form->addInput(array('type'=>'submit','name'=>'btn_add','value'=>$i18n->get('button.add')));
 
 if ($request->isPost()) {
@@ -82,6 +58,7 @@ if ($request->isPost()) {
     if (!ttValidString($cl_name)) $err->add($i18n->get('error.field'), $i18n->get('label.thing_name'));
     if (!ttValidString($cl_description, true)) $err->add($i18n->get('error.field'), $i18n->get('label.description'));
     if ($cl_rank >= $user->rank || $cl_rank < 0) $err->add($i18n->get('error.field'), $i18n->get('form.roles.rank'));
+    if (!ttValidStatus($cl_status)) $err->add($i18n->get('error.field'), $i18n->get('label.status'));
 
     if ($err->no()) {
       $existing_role = ttRoleHelper::getRoleByName($cl_name);

@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttConfigHelper');
 import('ttGroupHelper');
@@ -32,13 +8,17 @@ import('ttBehalfUser');
 import('ttGroup');
 import('form.Form');
 import('form.ActionForm');
+import('ttTemplateHelper');
+import('ttDate');
 
 class ttUser {
   var $login = null;            // User login.
   var $name = null;             // User name.
   var $id = null;               // User id.
   var $org_id = null;           // Organization id.
+  var $org_key = null;          // Organization key.
   var $group_id = null;         // Group id.
+  var $group_key = null;        // Group key.
   var $role_id = null;          // Role id.
   var $role_name = null;        // Role name.
   var $rank = null;             // User role rank.
@@ -51,26 +31,29 @@ class ttUser {
   var $behalf_group_name = null;// Group name, on behalf of which we are working.
   var $email = null;            // User email.
   var $lang = null;             // Language.
-  var $decimal_mark = null;     // Decimal separator.
+  var $decimal_mark = '.';      // Decimal separator.
   var $date_format = null;      // Date format.
   var $time_format = null;      // Time format.
   var $week_start = 0;          // Week start day.
-  var $show_holidays = 0;       // Whether to show holidays in calendar.
   var $tracking_mode = 0;       // Tracking mode.
   var $project_required = 0;    // Whether project selection is required on time entires.
-  var $task_required = 0;       // Whether task selection is required on time entires.
   var $record_type = 0;         // Record type (duration vs start and finish, or both).
   var $punch_mode = 0;          // Whether punch mode is enabled for user.
   var $allow_overlap = 0;       // Whether to allow overlapping time entries.
-  var $future_entries = 0;      // Whether to allow creating future entries.
   var $bcc_email = null;        // Bcc email.
   var $allow_ip = null;         // Specification from where user is allowed access.
   var $password_complexity = null; // Password complexity example.
   var $currency = null;         // Currency.
   var $plugins = null;          // Comma-separated list of enabled plugins.
+
+  // Refactoring ongoing. Towards using helper instead of config string?
   var $config = null;           // Comma-separated list of miscellaneous config options.
+  var $configHelper = null;     // An instance of ttConfigHelper class.
+  var $custom_css = null;       // Custom css.
+
   var $custom_logo = 0;         // Whether to use a custom logo for group.
   var $lock_spec = null;        // Cron specification for record locking.
+  var $holidays = null;         // Holidays specification.
   var $workday_minutes = 480;   // Number of work minutes in a regular day.
   var $rights = array();        // An array of user rights such as 'track_own_time', etc.
   var $is_client = false;       // Whether user is a client as determined by missing 'track_own_time' right.
@@ -88,9 +71,9 @@ class ttUser {
     $mdb2 = getConnection();
 
     $sql = "SELECT u.id, u.login, u.name, u.group_id, u.role_id, r.rank, r.name as role_name, r.rights, u.client_id,".
-      " u.quota_percent, u.email, g.org_id, g.name as group_name, g.currency, g.lang, g.decimal_mark, g.date_format,".
-      " g.time_format, g.week_start, g.tracking_mode, g.project_required, g.task_required, g.record_type,".
-      " g.bcc_email, g.allow_ip, g.password_complexity, g.plugins, g.config, g.lock_spec, g.workday_minutes, g.custom_logo".
+      " u.quota_percent, u.email, g.org_id, g.group_key, g.name as group_name, g.currency, g.lang, g.decimal_mark, g.date_format,".
+      " g.time_format, g.week_start, g.tracking_mode, g.project_required, g.record_type,".
+      " g.bcc_email, g.allow_ip, g.password_complexity, g.plugins, g.config, g.lock_spec, g.custom_css, g.holidays, g.workday_minutes, g.custom_logo".
       " FROM tt_users u LEFT JOIN tt_groups g ON (u.group_id = g.id) LEFT JOIN tt_roles r on (r.id = u.role_id) WHERE ";
     if ($id)
       $sql .= "u.id = $id";
@@ -110,6 +93,8 @@ class ttUser {
       $this->id = $val['id'];
       $this->org_id = $val['org_id'];
       $this->group_id = $val['group_id'];
+      $this->group_key = $val['group_key'];
+      if ($this->org_id == $this->group_key) $this->org_key = $val['group_key'];
       $this->role_id = $val['role_id'];
       $this->role_name = $val['role_name'];
       $this->rights = explode(',', $val['rights']);
@@ -118,14 +103,13 @@ class ttUser {
       $this->is_client = $this->client_id && !in_array('track_own_time', $this->rights);
       if ($val['quota_percent']) $this->quota_percent = $val['quota_percent'];
       $this->email = $val['email'];
-      $this->lang = $val['lang'];
-      $this->decimal_mark = $val['decimal_mark'];
+      if ($val['lang']) $this->lang = $val['lang'];
+      if ($val['decimal_mark']) $this->decimal_mark = $val['decimal_mark'];
       $this->date_format = $val['date_format'];
       $this->time_format = $val['time_format'];
       $this->week_start = $val['week_start'];
       $this->tracking_mode = $val['tracking_mode'];
       $this->project_required = $val['project_required'];
-      $this->task_required = $val['task_required'];
       $this->record_type = $val['record_type'];
       $this->bcc_email = $val['bcc_email'];
       $this->allow_ip = $val['allow_ip'];
@@ -134,17 +118,20 @@ class ttUser {
       $this->currency = $val['currency'];
       $this->plugins = $val['plugins'];
       $this->lock_spec = $val['lock_spec'];
+      $this->holidays = $val['holidays'];
       $this->workday_minutes = $val['workday_minutes'];
       $this->custom_logo = $val['custom_logo'];
 
+      // TODO: refactor this.
       $this->config = $val['config'];
-      $config = new ttConfigHelper($this->config);
+      $this->configHelper = new ttConfigHelper($val['config']);
+
       // Set user config options.
-      $this->show_holidays = $config->getDefinedValue('show_holidays');
-      $this->punch_mode = $config->getDefinedValue('punch_mode');
-      $this->allow_overlap = $config->getDefinedValue('allow_overlap');
-      $this->future_entries = $config->getDefinedValue('future_entries');
-      
+      $this->punch_mode = $this->configHelper->getDefinedValue('punch_mode');
+      $this->allow_overlap = $this->configHelper->getDefinedValue('allow_overlap');
+
+      $this->custom_css = $val['custom_css'];
+
       // Set "on behalf" id and name (user).
       if (isset($_SESSION['behalf_id'])) {
         $this->behalf_id = $_SESSION['behalf_id'];
@@ -167,14 +154,55 @@ class ttUser {
     return ($this->behalfUser ? $this->behalfUser->id : $this->id);
   }
 
+  // getName returns user name on behalf of whom the current user is operating.
+  function getName() {
+    return ($this->behalfUser ? $this->behalfUser->name : $this->name);
+  }
+
   // getQuotaPercent returns quota percent for active user.
   function getQuotaPercent() {
     return ($this->behalfUser ? $this->behalfUser->quota_percent : $this->quota_percent);
   }
 
+  // getEmail returns email for active user.
+  function getEmail() {
+    return ($this->behalfUser ? $this->behalfUser->email : $this->email);
+  }
+
+  // getPasswordComplexity returns password complexity for active user.
+  function getPasswordComplexity() {
+    return ($this->behalfUser ? $this->behalfUser->password_complexity : $this->password_complexity);
+  }
+
   // The getGroup returns group id on behalf of which the current user is operating.
   function getGroup() {
     return ($this->behalfGroup ? $this->behalfGroup->id : $this->group_id);
+  }
+
+  // getGroupName returns group name on behalf of which the current user is operating.
+  function getGroupName() {
+    return ($this->behalfGroup ? $this->behalfGroup->name : $this->group_name);
+  }
+
+  // getGroupKey returns group key for active group.
+  function getGroupKey() {
+    return ($this->behalfGroup ? $this->behalfGroup->group_key : $this->group_key);
+  }
+
+  // getOrgKey returns org key.
+  function getOrgKey() {
+    if ($this->org_key) {
+      return $this->org_key;
+    }
+
+    // Org key is not set because we are in a subgroup. Obtain it.
+    $mdb2 = getConnection();
+    $org_id = $this->org_id;
+    $sql = "select group_key from tt_groups where id = $org_id and status = 1";
+    $res = $mdb2->query($sql);
+    $val = $res->fetchRow();
+    $this->org_key = $val['group_key'];
+    return $this->org_key;
   }
 
   // getDecimalMark returns decimal mark for active group.
@@ -190,6 +218,11 @@ class ttUser {
   // getTimeFormat returns time format for active group.
   function getTimeFormat() {
     return ($this->behalfGroup ? $this->behalfGroup->time_format : $this->time_format);
+  }
+
+  // getWeekStart returns week start day for active group.
+  function getWeekStart() {
+    return ($this->behalfGroup ? $this->behalfGroup->week_start : $this->week_start);
   }
 
   // getTrackingMode returns tracking mode for active group.
@@ -217,6 +250,11 @@ class ttUser {
     return ($this->behalfGroup ? $this->behalfGroup->lock_spec : $this->lock_spec);
   }
 
+  // getHolidays returns holidays specification for active group.
+  function getHolidays() {
+    return ($this->behalfGroup ? $this->behalfGroup->holidays : $this->holidays);
+  }
+
   // getWorkdayMinutes returns workday_minutes for active group.
   function getWorkdayMinutes() {
     return ($this->behalfGroup ? $this->behalfGroup->workday_minutes : $this->workday_minutes);
@@ -224,7 +262,12 @@ class ttUser {
 
   // getConfig returns config string for active group.
   function getConfig() {
-    return ($this->behalfGroup ? $this->behalfGroup->config : $this->config);
+    return ($this->behalfGroup ? $this->behalfGroup->configHelper->getConfig() : $this->configHelper->getConfig());
+  }
+
+  // getConfigHelper returns ttConfigHelper instance for active group.
+  function getConfigHelper() {
+    return ($this->behalfGroup ? $this->behalfGroup->configHelper : $this->configHelper);
   }
 
   // getConfigOption returns true if an option is defined for group.
@@ -236,10 +279,15 @@ class ttUser {
     return $config->getDefinedValue($name);
   }
 
-  // getConfigInt retruns an integer value defined in a group, or false.
-  function getConfigInt($name, $defaultVal) {
+  // getConfigInt returns an integer value defined in a group, or false.
+  function getConfigInt($name, $defaultVal = 0) {
     $config = new ttConfigHelper($this->getConfig());
     return $config->getIntValue($name, $defaultVal);
+  }
+
+  // getCustomCss returns custom css for active group.
+  function getCustomCss() {
+    return ($this->behalfGroup ? $this->behalfGroup->custom_css : $this->custom_css);
   }
 
   // can - determines whether user has a right to do something.
@@ -255,11 +303,24 @@ class ttUser {
   // isPluginEnabled checks whether a plugin is enabled for user.
   function isPluginEnabled($plugin)
   {
-    return in_array($plugin, explode(',', $this->getPlugins()));
+    return in_array($plugin, explode(',', $this->getPlugins() ? $this->getPlugins() : ''));
+  }
+
+  // isOptionEnabled checks whether a config option is enabled for user.
+  function isOptionEnabled($option)
+  {
+    return $this->behalfGroup ? $this->behalfGroup->configHelper->getDefinedValue($option) : $this->configHelper->getDefinedValue($option);
+  }
+
+  // setOption sets an option inside of ttConfigHelper instance.
+  // Note that it does not write to the database.
+  function setOption($option, $enable = true)
+  {
+    return $this->behalfGroup ? $this->behalfGroup->configHelper->setDefinedValue($option, $enable) : $this->configHelper->setDefinedValue($option, $enable);
   }
 
   // getAssignedProjects - returns an array of assigned projects.
-  function getAssignedProjects()
+  function getAssignedProjects($options = null)
   {
     $result = array();
     $mdb2 = getConnection();
@@ -268,13 +329,29 @@ class ttUser {
     $group_id = $this->getGroup();
     $org_id = $this->org_id;
 
+    $filePart = '';
+    $fileJoin = '';
+    if (isset($options['include_files']) && $options['include_files']) {
+      $filePart = ', if(Sub1.entity_id is null, 0, 1) as has_files';
+      $fileJoin =  " left join (select distinct entity_id from tt_files".
+      " where entity_type = 'project' and group_id = $group_id and org_id = $org_id and status = 1) Sub1".
+      " on (p.id = Sub1.entity_id)";
+    }
+
     // Do a query with inner join to get assigned projects.
-    $sql = "select p.id, p.name, p.description, p.tasks, upb.rate from tt_projects p".
+    $sql = "select p.id, p.name, p.description, p.tasks, upb.rate $filePart from tt_projects p $fileJoin".
       " inner join tt_user_project_binds upb on (upb.user_id = $user_id and upb.project_id = p.id and upb.status = 1)".
       " where p.group_id = $group_id and p.org_id = $org_id and p.status = 1 order by p.name";
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
+      $bindTemplatesWithProjects = isset($options['include_templates']) && $options['include_templates'];
       while ($val = $res->fetchRow()) {
+        // If we have to include templates, get them in a separate query for each project.
+        // Although, theoretically, we could use mysql group_concat, but this requires grouping by, which makes
+        // maintenance of this code more complex.
+        if ($bindTemplatesWithProjects) {
+          $val['templates'] = ttTemplateHelper::getAssignedTemplates($val['id']);
+        }
         $result[] = $val;
       }
     }
@@ -365,7 +442,7 @@ class ttUser {
 
     // Calculate the last occurrence of a lock.
     $last = tdCron::getLastOccurrence($this->getLockSpec(), time());
-    $lockdate = new DateAndTime(DB_DATEFORMAT, strftime('%Y-%m-%d', $last));
+    $lockdate = new ttDate(strftime('%Y-%m-%d', $last));
     if ($date->before($lockdate))
       return true;
 
@@ -395,6 +472,7 @@ class ttUser {
     $includeSelf = isset($options['include_self']);
 
     $select_part = 'select u.id, u.group_id, u.name';
+    $include_quota = false;
     if (isset($options['include_login'])) {
       $select_part .= ', u.login';
       // Piggy-back on include_login to see if we must also include quota_percent.
@@ -412,7 +490,7 @@ class ttUser {
 
     $left_joins = null;
     if (isset($options['max_rank']) || $skipClients || isset($options['include_role']))
-        $left_joins .= ' left join tt_roles r on (u.role_id = r.id)';
+      $left_joins .= ' left join tt_roles r on (u.role_id = r.id)';
 
     $where_part = " where u.org_id = $org_id and u.group_id = $group_id";
     if (isset($options['status']))
@@ -464,73 +542,43 @@ class ttUser {
     return $user_list;
   }
 
-  // getGroupsForDropdown obtains an array of groups to populate "Group" dropdown.
-  // It consists of:
-  //   - User home group.
-  //   - The entire stack of groups all the way down to current on behalf group.
-  //   - All immediate children of the current on behalf group.
-  // This allows user to navigate easily to home group, anything in between, and 1 level below.
-  //
-  // Note 1: group dropdown is, by design, to be placed on all pages where "relevant",
-  // such as users.php, projects.php, tasks.php, etc. But some features may be disabled
-  // in some groups. We should check for feature availability on group change
-  // in post and redirect to feature_disabled.php when this happens.
-  // This will allow us to keep dropdown content consistent on all pages.
-  // Filtering content of the dropdown does not seem right.
-  //
-  // Note 2: Menu should display according to $user home group settings.
-  //         Pages, should look according to $user->behalfGroup settings (if set).
-  //         For example, if home group allows tasks, menu should display Tasks,
-  //         even when we are on behalf of a subgroup without tasks.
-  //
-  // Note 3: Language of all pages should be as in $user home group even when
-  //         subgroups have a different language.
+  // getGroupsForDropdown obtains an array of groups to populate the "Group" dropdown.
+  // It consists of the entire tree starting from user home group.
+  // Group name is prefixed with additional characters to indicate subgroups level.
   function getGroupsForDropdown() {
-    $mdb2 = getConnection();
+    global $user;
 
-    // Start with subgroups.
+    // Start with user home group.
     $groups = array();
-    $group_id = $this->getGroup();
-    $sql = "select id, name from tt_groups where org_id = $this->org_id and parent_id = $group_id and status = 1";
-    $res = $mdb2->query($sql);
-    if (!is_a($res, 'PEAR_Error')) {
-      while ($val = $res->fetchRow()) {
-        $groups[] = $val;
-      }
-    }
+    $subgroup_level = 0;
+    $group_id = $user->group_id;
 
-    // Add current on behalf group to the beginning of array.
-    $selected_group_id = ($this->behalf_group_id ? $this->behalf_group_id : $this->group_id);
-    $selected_group_name = ($this->behalf_group_id ? $this->behalf_group_name : $this->group_name);
-    array_unshift($groups,  array('id'=>$selected_group_id,'name'=>$selected_group_name));
-
-    // Iterate all the way to the home group, starting with selected ("on behalf") group.
-    $current_group_id = $selected_group_id;
-    while ($current_group_id != $this->group_id) {
-      $sql = "select parent_id from tt_groups where org_id = $this->org_id and id = $current_group_id and status = 1";
-      $res = $mdb2->query($sql);
-      if (is_a($res, 'PEAR_Error')) return false;
-
-      $val = $res->fetchRow();
-      $parent_id = $val['parent_id'];
-      if ($parent_id) {
-        // Get parent group name.
-        $sql = "select name from tt_groups where org_id = $this->org_id and id = $parent_id and status = 1";
-        $res = $mdb2->query($sql);
-        if (is_a($res, 'PEAR_Error')) return false;
-        $val = $res->fetchRow();
-        if (!$val) return false;
-        array_unshift($groups, array('id'=>$parent_id,'name'=>$val['name']));
-        $current_group_id = $parent_id;
-      } else {
-        return false;
-      }
-    }
+    $this->addGroupToDropdown($groups, $group_id, $subgroup_level);
     return $groups;
+  }
+
+  // addGroupToDropdown is a recursive function to populate a tree of groups, used with getGroupsForDropdown().
+  function addGroupToDropdown(&$groups, $group_id, $subgroup_level) {
+    $name = '';
+    // Add indentation markup to indicate a subdirectory level.
+    for ($i = 0; $i < $subgroup_level; $i++) {
+      $name .= '*';
+      // $name .= '🛑'; // Unicode stop sign. Does not display properly in Chrome 98.
+    }
+    if ($subgroup_level) $name .= ' '; // Add an extra space.
+    $name .= ttGroupHelper::getGroupName($group_id);
+
+    $groups[] = array('id'=>$group_id, 'name'=>$name);
+
+    $subgroups = (array) $this->getSubgroups($group_id);
+    foreach($subgroups as $subgroup) {
+      $this->addGroupToDropdown($groups, $subgroup['id'], $subgroup_level+1);
+    }
   }
 
   // getSubgroups obtains a list of immediate subgroups.
   function getSubgroups($group_id = null) {
+    $groups = array();
     $mdb2 = getConnection();
 
     if (!$group_id) $group_id = $this->getGroup();
@@ -546,22 +594,20 @@ class ttUser {
     return $groups;
   }
 
-  // getUserDetails function is used to manage users in group and returns user details.
-  // At the moment, the function is used for user edits and deletes.
-  function getUserDetails($user_id) {
-    if (!$this->can('manage_users')) return false;
-
+  // getUserDetails function returns user details.
+   function getUserDetails($user_id) {
     $mdb2 = getConnection();
     $group_id = $this->getGroup();
     $org_id = $this->org_id;
+    $uid = (int)$user_id;
 
     // Determine max rank. If we are searching in on behalf group
     // then rank restriction does not apply.
-    $max_rank = $this->behalfGroup ? MAX_RANK : $this->rank;
+    $max_rank = $this->behalfGroup ? MAX_RANK + 1 : $this->rank;
 
     $sql =  "select u.id, u.name, u.login, u.role_id, u.client_id, u.status, u.rate, u.quota_percent, u.email from tt_users u".
       " left join tt_roles r on (u.role_id = r.id)".
-      " where u.id = $user_id and u.group_id = $group_id and u.org_id = $org_id and u.status is not null".
+      " where u.id = $uid and u.group_id = $group_id and u.org_id = $org_id and u.status is not null".
       " and (r.rank < $max_rank or (r.rank = $max_rank and u.id = $this->id))"; // Users with lesser roles or self.
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
@@ -592,7 +638,7 @@ class ttUser {
         return false;
 
       // So far, so good. Check user now.
-      $options = array('group_id'=>$group_id,'status'=>ACTIVE,'max_rank'=>MAX_RANK);
+      $options = array('status'=>ACTIVE,'max_rank'=>MAX_RANK);
       $users = $this->getUsers($options);
       foreach($users as $one_user) {
         if ($one_user['id'] == $this->behalf_id)
@@ -630,10 +676,13 @@ class ttUser {
   function updateGroup($fields) {
     $mdb2 = getConnection();
 
-    $group_id = $fields['group_id'];
+    $group_id = isset($fields['group_id']) ? $fields['group_id'] : null;
     if ($group_id && !$this->isGroupValid($group_id)) return false;
     if (!$group_id) $group_id = $this->getGroup();
 
+    $name_part = $description_part = $currency_part = $lang_part = $decimal_mark_part = $date_format_part = $time_format_part =
+      $week_start_part = $tracking_mode_part = $project_required_part = $record_type_part = $bcc_email_part =  $allow_ip_part =
+      $plugins_part = $config_part = $custom_css_part = $lock_spec_part = $holidays_part = $workday_minutes_part = '';
     if (isset($fields['name'])) $name_part = ', name = '.$mdb2->quote($fields['name']);
     if (isset($fields['description'])) $description_part = ', description = '.$mdb2->quote($fields['description']);
     if (isset($fields['currency'])) $currency_part = ', currency = '.$mdb2->quote($fields['currency']);
@@ -645,24 +694,31 @@ class ttUser {
     if (isset($fields['tracking_mode'])) {
       $tracking_mode_part = ', tracking_mode = '.(int) $fields['tracking_mode'];
       $project_required_part = ' , project_required = '.(int) $fields['project_required'];
-      $task_required_part = ' , task_required = '.(int) $fields['task_required'];
     }
     if (isset($fields['record_type'])) $record_type_part = ', record_type = '.(int) $fields['record_type'];
     if (isset($fields['bcc_email'])) $bcc_email_part = ', bcc_email = '.$mdb2->quote($fields['bcc_email']);
     if (isset($fields['allow_ip'])) $allow_ip_part = ', allow_ip = '.$mdb2->quote($fields['allow_ip']);
+    if (isset($fields['password_complexity'])) $password_complexity_part = ', password_complexity = '.$mdb2->quote($fields['password_complexity']);
     if (isset($fields['plugins'])) $plugins_part = ', plugins = '.$mdb2->quote($fields['plugins']);
     if (isset($fields['config'])) $config_part = ', config = '.$mdb2->quote($fields['config']);
+    if (isset($fields['custom_css'])) $custom_css_part = ', custom_css = '.$mdb2->quote($fields['custom_css']);
     if (isset($fields['lock_spec'])) $lock_spec_part = ', lock_spec = '.$mdb2->quote($fields['lock_spec']);
+    if (isset($fields['holidays'])) $holidays_part = ', holidays = '.$mdb2->quote($fields['holidays']);
     if (isset($fields['workday_minutes'])) $workday_minutes_part = ', workday_minutes = '.$mdb2->quote($fields['workday_minutes']);
     $modified_part = ', modified = now(), modified_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', modified_by = '.$mdb2->quote($this->id);
 
     $parts = trim($name_part.$description_part.$currency_part.$lang_part.$decimal_mark_part.$date_format_part.
-      $time_format_part.$week_start_part.$tracking_mode_part.$task_required_part.$project_required_part.$record_type_part.
-      $bcc_email_part.$allow_ip_part.$plugins_part.$config_part.$lock_spec_part.$workday_minutes_part.$modified_part, ',');
+      $time_format_part.$week_start_part.$tracking_mode_part.$project_required_part.$record_type_part.
+      $bcc_email_part.$allow_ip_part.$password_complexity_part.$plugins_part.$config_part.$custom_css_part.$lock_spec_part.$holidays_part.$workday_minutes_part.$modified_part, ',');
 
     $sql = "update tt_groups set $parts where id = $group_id and org_id = $this->org_id";
     $affected = $mdb2->exec($sql);
-    if (is_a($affected, 'PEAR_Error')) return false;
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
 
     return true;
   }
@@ -694,41 +750,27 @@ class ttUser {
     if (is_a($affected, 'PEAR_Error'))
       return false;
 
-    // Mark user as deleted.
+    // Mark user custom fields as deleted,
+    require_once('plugins/CustomFields.class.php');
+    $entity_type = CustomFields::ENTITY_USER;
     $modified_part = ', modified = now(), modified_ip = '.$mdb2->quote($_SERVER['REMOTE_ADDR']).', modified_by = '.$mdb2->quote($this->id);
+    $sql = "update tt_entity_custom_fields set status = null $modified_part".
+      " where entity_type = $entity_type and entity_id = $user_id".
+      " and group_id = $group_id and org_id = $org_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Mark user as deleted.
     $sql = "update tt_users set status = null $modified_part where id = $user_id".
       " and group_id = $group_id and org_id = $org_id";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       return false;
 
-    return true;
-  }
-
-  // enablePlugin either enables or disables a specific plugin for group.
-  function enablePlugin($plugin, $enable = true)
-  {
-    if (!$this->can('manage_advanced_settings'))
-      return false; // Note: enablePlugin is currently only used on week_view.php.
-                    // So, it's not really a plugin we are enabling, but rather week view display options.
-                    // Therefore, a check for manage_advanced_settings, not manage_features.
-
-    $plugin_array = explode(',', $this->plugins);
-    if ($enable && !in_array($plugin, $plugin_array))
-      $plugin_array[] = $plugin; // Add plugin to array.
-
-    if (!$enable && in_array($plugin, $plugin_array)) {
-      $key = array_search($plugin, $plugin_array);
-      if ($key !== false)
-        unset($plugin_array[$key]); // Remove plugin from array.
-    }
-
-    $plugins = implode(',', $plugin_array);
-    if ($plugins != $this->plugins) {
-      if (!$this->updateGroup(array('plugins' => $plugins)))
-        return false;
-      $this->plugins = $plugins;
-    }
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
 
     return true;
   }
@@ -798,7 +840,7 @@ class ttUser {
       $user_part .= ',  <span class="onBehalf">'.htmlspecialchars($this->behalf_group_name).'</span>';
     } else {
       if ($this->group_name) // Note: we did not require group names in the past.
-        $user_part .= ', '.$this->group_name;
+        $user_part .= ', '.htmlspecialchars($this->group_name);
     }
     return $user_part;
   }
@@ -812,6 +854,7 @@ class ttUser {
     $this->behalf_id = null;
     $this->behalf_name = null;
     unset($this->behalfGroup);
+    $this->behalfGroup = null;
     unset($_SESSION['behalf_group_id']);
     unset($_SESSION['behalf_group_name']);
     unset($_SESSION['behalf_id']);
@@ -819,6 +862,7 @@ class ttUser {
 
     // Destroy report bean if it was set in session.
     $form = new Form('dummyForm');
+    global $request;
     $bean = new ActionForm('reportBean', $form, $request);
     if ($bean->isSaved()) {
       $bean->destroyBean();
@@ -849,6 +893,7 @@ class ttUser {
 
   // setOnBehalfUser sets on behalf user both the object and the session.
   function setOnBehalfUser($user_id) {
+    $uid = (int)$user_id; // In case we forgot to sanitize $user_id before getting here.
 
     // Unset things first.
     $this->behalf_id = null;
@@ -858,16 +903,16 @@ class ttUser {
     unset($_SESSION['behalf_name']);
 
     // No need to set if user is us.
-    if ($user_id == $this->id) return;
+    if ($uid == $this->id) return;
 
     // No need to set if user id is not valid.
-    if (!$this->isUserValid($user_id)) return;
+    if (!$this->isUserValid($uid)) return;
 
     // We are good to set on behalf user.
-    $onBehalfUserName = ttUserHelper::getUserName($user_id);
-    $_SESSION['behalf_id'] = $user_id;
+    $onBehalfUserName = ttUserHelper::getUserName($uid);
+    $_SESSION['behalf_id'] = $uid;
     $_SESSION['behalf_name'] = $onBehalfUserName;
-    $this->behalf_id = $user_id;
+    $this->behalf_id = $uid;
     $this->behalf_name = $onBehalfUserName;
 
     $this->behalfUser = new ttBehalfUser($this->behalf_id, $this->org_id);

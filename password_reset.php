@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -39,7 +15,7 @@ if ($auth->isPasswordExternal()) {
 $cl_login = $request->getParameter('login');
 
 $form = new Form('resetPasswordForm');
-$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'login','style'=>'width: 300px;','value'=>$cl_login));
+$form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'login','value'=>$cl_login));
 $form->addInput(array('type'=>'submit','name'=>'btn_submit','value'=>$i18n->get('button.reset_password')));
 
 if ($request->isPost()) {
@@ -64,8 +40,16 @@ if ($request->isPost()) {
   if ($err->no()) {
     $user = new ttUser($cl_login); // Note: reusing $user from initialize.php here.
 
+    // Protection against flooding user mailbox with too many password reset emails.
+    if (ttUserHelper::recentRefExists($user->id)) $err->add($i18n->get('error.access_denied'));
+  }
+
+  if ($err->no()) {
     // Prepare and save a temporary reference for user.
-    $temp_ref = md5(uniqid());
+    $cryptographically_strong = true;
+    $random_bytes = openssl_random_pseudo_bytes(16, $cryptographically_strong);
+    if ($random_bytes === false) die ("openssl_random_pseudo_bytes function call failed...");
+    $temp_ref = bin2hex($random_bytes);
     ttUserHelper::saveTmpRef($temp_ref, $user->id);
 
     $user_i18n = null;
@@ -88,10 +72,11 @@ if ($request->isPost()) {
 
     if ($receiver) {
       import('mail.Mailer');
-      $sender = new Mailer();
-      $sender->setCharSet(CHARSET);
-      $sender->setSender(SENDER);
-      $sender->setReceiver("$receiver");
+      $mailer = new Mailer();
+      $mailer->setCharSet(CHARSET);
+      $mailer->setSender(SENDER);
+      $mailer->setReceiver("$receiver");
+      $secure_connection = false;
       if ((!empty($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] !== 'off')) || ($_SERVER['SERVER_PORT'] == 443))
         $secure_connection = true;
       if($secure_connection)
@@ -100,14 +85,20 @@ if ($request->isPost()) {
         $http = 'http';
 
       $cl_subject = $user_i18n->get('form.reset_password.email_subject');
-      if (APP_NAME)
-        $pass_edit_url = $http.'://'.$_SERVER['HTTP_HOST'].'/'.APP_NAME.'/password_change.php?ref='.$temp_ref;
-      else
-        $pass_edit_url = $http.'://'.$_SERVER['HTTP_HOST'].'/password_change.php?ref='.$temp_ref;
 
-      $sender->setMailMode(MAIL_MODE);
-      $res = $sender->send($cl_subject, sprintf($user_i18n->get('form.reset_password.email_body'), $_SERVER['REMOTE_ADDR'], $pass_edit_url));
-      $smarty->assign('result_message', $res ? $i18n->get('form.reset_password.message') : $i18n->get('error.mail_send'));
+      $dir_name = $app_root = '';
+      if (defined('DIR_NAME'))
+        $dir_name = trim(constant('DIR_NAME'), '/');
+      if (!empty($dir_name))
+        $app_root = '/'.$dir_name;
+
+      $pass_edit_url = $http.'://'.$_SERVER['HTTP_HOST'].$app_root.'/password_change.php?ref='.$temp_ref;
+
+      $mailer->setMailMode(MAIL_MODE);
+      if ($mailer->send($cl_subject, sprintf($user_i18n->get('form.reset_password.email_body'), $_SERVER['REMOTE_ADDR'], $pass_edit_url)))
+        $msg->add($i18n->get('form.reset_password.message'));
+      else
+        $err->add($i18n->get('error.mail_send'));
     }
   }
 } // isPost

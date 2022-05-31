@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: escape apostrophes with THREE backslashes, like here:  choisir l\\\'option.
 // Other characters (such as double-quotes in http links, etc.) do not have to be escaped.
@@ -33,8 +9,6 @@ $i18n_language = 'Japanese (日本語)';
 $i18n_months = array('1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月');
 $i18n_weekdays = array('日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日');
 $i18n_weekdays_short = array('日', '月', '火', '水', '木', '金', '土');
-// format mm/dd
-$i18n_holidays = array('01/01', '01/12', '03/20', '05/03', '05/04', '05/05', '05/06', '09/21', '09/22', '09/23', '11/03', '11/23');
 
 $i18n_key_words = array(
 
@@ -46,16 +20,19 @@ $i18n_key_words = array(
 // 'menu.forum' => 'Forum',
 'menu.help' => 'ヘルプ',
 // TODO: translate the following.
-// 'menu.create_group' => 'Create Group',
+// 'menu.register' => 'Register',
 'menu.profile' => 'プロファイル',
 // TODO: translate the following.
 // 'menu.group' => 'Group',
 // 'menu.plugins' => 'Plugins',
 'menu.time' => '時間',
 // TODO: translate the following.
+// 'menu.puncher' => 'Punch',
+// 'menu.week' => 'Week',
 // 'menu.expenses' => 'Expenses',
 'menu.reports' => 'レポート',
 // TODO: translate the following.
+// 'menu.timesheets' => 'Timesheets',
 // 'menu.charts' => 'Charts',
 'menu.projects' => 'プロジェクト',
 // TODO: translate the following.
@@ -63,7 +40,6 @@ $i18n_key_words = array(
 'menu.users' => 'ユーザー',
 // TODO: translate the following.
 // 'menu.groups' => 'Groups',
-// 'menu.subgroups' => 'Subgroups',
 // 'menu.export' => 'Export',
 'menu.clients' => 'クライアント',
 'menu.options' => 'オプション',
@@ -82,6 +58,7 @@ $i18n_key_words = array(
 // 'error.sys' => 'System error.',
 'error.db' => 'データベースのエラー。',
 // TODO: translate the following.
+// 'error.registered_recently' => 'Registered recently.',
 // 'error.feature_disabled' => 'Feature is disabled.',
 'error.field' => '不正確な"{0}"データ。',
 'error.empty' => '"{0}"のフィールドが空白です。',
@@ -96,6 +73,9 @@ $i18n_key_words = array(
 // 'error.report' => 'Select report.',
 // 'error.record' => 'Select record.',
 'error.auth' => '不正確なログインあるいはパスワードが不正確です。',
+// TODO: translate the following.
+// 'error.2fa_code' => 'Invalid 2FA code.',
+// 'error.weak_password' => 'Weak password.',
 'error.user_exists' => 'このログインと関連されたユーザーは既に存在します。',
 // TODO: translate the following.
 // 'error.object_exists' => 'Object with this name already exists.',
@@ -103,6 +83,7 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'error.role_exists' => 'Role with this rank already exists.',
 // 'error.no_invoiceable_items' => 'There are no invoiceable items.',
+// 'error.no_records' => 'There are no records.',
 'error.no_login' => 'このログインと関連されたユーザーはいません。',
 'error.no_groups' => 'あなたのデータベースは空いています。管理者にログインして新規チームを作成してください。', // TODO: replace "team" with "group".
 'error.upload' => 'ファイルのアップロードのエラー。',
@@ -122,6 +103,7 @@ $i18n_key_words = array(
 // 'error.format' => 'Invalid file format.',
 // 'error.user_count' => 'Limit on user count.',
 // 'error.expired' => 'Expiration date reached.',
+// 'error.file_storage' => 'File storage server error.', // See comment in English file.
 
 // Warning messages.
 // TODO: translate the following.
@@ -153,10 +135,15 @@ $i18n_key_words = array(
 'button.import' => 'チームのインポート', // TODO: replace "team" with "group".
 // TODO: translate the following.
 // 'button.close' => 'Close',
+// 'button.start' => 'Start',
 // 'button.stop' => 'Stop',
+// 'button.approve' => 'Approve',
+// 'button.disapprove' => 'Disapprove',
+// 'button.sync' => 'Sync', // Used in Android app. The meaning is to synchronize offline time records with server.
 
 // Labels for controls on forms. Labels in this section are used on multiple forms.
 // TODO: translate the following.
+// 'label.menu' => 'Menu',
 // 'label.group_name' => 'Group name',
 // 'label.address' => 'Address',
 'label.currency' => '通貨',
@@ -217,6 +204,7 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'label.day_view' => 'Day view',
 // 'label.week_view' => 'Week view',
+// 'label.puncher' => 'Puncher',
 'label.id' => '識別子',
 'label.language' => '言語',
 // TODO: translate the following.
@@ -238,20 +226,17 @@ $i18n_key_words = array(
 'label.ldap_hint' => '下記のフィールドにあなたの<b>WindowsのログインID</b>と<b>パスワード</b>を入力してください。',
 'label.required_fields' => '* 必須のフィールド',
 'label.on_behalf' => 'を代表して',
-// TODO: translate all 3 roles properly, see https://www.anuko.com/time_tracker/user_guide/user_accounts.htm
-// This may require different terms for role_manager and role_comanager.
-'label.role_manager' => '(管理者)',
-'label.role_comanager' => '(共同管理者)',
-// 'label.role_admin' => '(administrator)',
 // TODO: translate the following.
 // 'label.page' => 'Page',
 // 'label.condition' => 'Condition',
 // 'label.yes' => 'yes',
 // 'label.no' => 'no',
+// 'label.sort' => 'Sort',
 // Labels for plugins (extensions to Time Tracker that provide additional features).
 // TODO: translate the following.
 // 'label.custom_fields' => 'Custom fields',
 // 'label.monthly_quotas' => 'Monthly quotas',
+// 'label.entity' => 'Entity',
 // 'label.type' => 'Type',
 // 'label.type_dropdown' => 'dropdown',
 // 'label.type_text' => 'text',
@@ -267,20 +252,42 @@ $i18n_key_words = array(
 // 'label.mark_paid' => 'Mark paid',
 // 'label.week_note' => 'Week note',
 // 'label.week_list' => 'Week list',
+// 'label.weekends' => 'Weekends',
 // 'label.work_units' => 'Work units',
 // 'label.work_units_short' => 'Units',
 'label.totals_only' => '全体だけ',
 // TODO: translate the following.
 // 'label.quota' => 'Quota',
+// 'label.timesheet' => 'Timesheet',
+// 'label.submitted' => 'Submitted',
+// 'label.approved' => 'Approved',
+// 'label.approval' => 'Report approval',
+// 'label.mark_approved' => 'Mark approved',
+// 'label.template' => 'Template',
+// 'label.bind_templates_with_projects' => 'Bind templates with projects',
+// 'label.prepopulate_note' => 'Prepopulate Note field',
+// 'label.attachments' => 'Attachments',
+// 'label.files' => 'Files',
+// 'label.file' => 'File',
+// 'label.active_users' => 'Active Users',
+// 'label.inactive_users' => 'Inactive Users',
+
+// Entity names. We use lower case (in English) because they are used in dropdowns, too.
+// They are used to associate a custom field with an entity type.
+// TODO: translate the following.
+// 'entity.time' => 'time',
+// 'entity.user' => 'user',
+// 'entity.project' => 'project',
 
 // Form titles.
 // TODO: Translate the following.
 // 'title.error' => 'Error',
 // 'title.success' => 'Success',
 'title.login' => 'ログイン',
+// TODO: translate the follolwing.
+// 'title.2fa' => 'Two Factor Authentication',
 'title.groups' => 'チーム', // TODO: change "teams" to "groups".
 // TODO: translate the following.
-// 'title.subgroups' => 'Subgroups',
 // 'title.add_group' => 'Adding Group',
 // 'title.edit_group' => 'Editing Group',
 'title.delete_group' => 'チームの削除',  // TODO: change "team" to "group".
@@ -290,10 +297,13 @@ $i18n_key_words = array(
 'title.time' => '時間',
 'title.edit_time_record' => '時間レコードの編集',
 'title.delete_time_record' => '時間レコードの削除',
-// TODO: translate the following.
+// TODO: Translate the following.
+// 'title.time_files' => 'Time Record Files',
+// 'title.puncher' => 'Puncher',
 // 'title.expenses' => 'Expenses',
 // 'title.edit_expense' => 'Editing Expense Item',
 // 'title.delete_expense' => 'Deleting Expense Item',
+// 'title.expense_files' => 'Expense Item Files',
 // 'title.predefined_expenses' => 'Predefined Expenses',
 // 'title.add_predefined_expense' => 'Adding Predefined Expense',
 // 'title.edit_predefined_expense' => 'Editing Predefined Expense',
@@ -302,11 +312,16 @@ $i18n_key_words = array(
 'title.report' => 'レポート',
 // TODO: translate the following.
 // 'title.send_report' => 'Sending Report',
+// 'title.timesheets' => 'Timesheets',
+// 'title.timesheet' => 'Timesheet',
+// 'title.timesheet_files' => 'Timesheet Files',
 'title.invoice' => '送り状',
 // TODO: translate the following.
 // 'title.send_invoice' => 'Sending Invoice',
 // 'title.charts' => 'Charts',
 'title.projects' => 'プロジェクト',
+// TODO: translate the following.
+// 'title.project_files' => 'Project Files',
 'title.add_project' => 'プロジェクトの追加',
 'title.edit_project' => 'プロジェクトの編集',
 'title.delete_project' => 'プロジェクトの削除',
@@ -337,10 +352,15 @@ $i18n_key_words = array(
 // 'title.add_notification' => 'Adding Notification',
 // 'title.edit_notification' => 'Editing Notification',
 // 'title.delete_notification' => 'Deleting Notification',
+// 'title.add_timesheet' => 'Adding Timesheet',
+// 'title.edit_timesheet' => 'Editing Timesheet',
+// 'title.delete_timesheet' => 'Deleting Timesheet',
 // 'title.monthly_quotas' => 'Monthly Quotas',
 // 'title.export' => 'Exporting Group Data',
 // 'title.import' => 'Importing Group Data',
 'title.options' => 'オプション',
+// TODO: translate the following.
+// 'title.display_options' => 'Display Options',
 'title.profile' => 'プロファイル',
 // TODO: translate the following.
 // 'title.plugins' => 'Plugins',
@@ -358,6 +378,13 @@ $i18n_key_words = array(
 // 'title.week_view' => 'Week View',
 // 'title.swap_roles' => 'Swapping Roles',
 // 'title.work_units' => 'Work Units',
+// 'title.templates' => 'Templates',
+// 'title.add_template' => 'Adding Template',
+// 'title.edit_template' => 'Editing Template',
+// 'title.delete_template' => 'Deleting Template',
+// 'title.edit_file' => 'Editing File',
+// 'title.delete_file' => 'Deleting File',
+// 'title.download_file' => 'Downloading File',
 
 // Section for common strings inside combo boxes on forms. Strings shared between forms shall be placed here.
 // Strings that are used in a single form must go to the specific form section.
@@ -382,26 +409,41 @@ $i18n_key_words = array(
 // 'dropdown.clients' => 'clients',
 // 'dropdown.select' => '--- select ---',
 // 'dropdown.select_invoice' => '--- select invoice ---',
+// 'dropdown.select_timesheet' => '--- select timesheet ---',
 // 'dropdown.status_active' => 'active',
 // 'dropdown.status_inactive' => 'inactive',
 // 'dropdown.delete' => 'delete',
 // 'dropdown.do_not_delete' => 'do not delete',
+// 'dropdown.approved' => 'approved',
+// 'dropdown.not_approved' => 'not approved',
 // 'dropdown.paid' => 'paid',
 // 'dropdown.not_paid' => 'not paid',
+// 'dropdown.ascending' => 'ascending',
+// 'dropdown.descending' => 'descending',
 
 // Login form. See example at https://timetracker.anuko.com/login.php.
 'form.login.forgot_password' => 'パスワードを忘れましたか？',
 // TODO: translate the following.
-// 'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> is a simple, easy to use, open source time tracking system.',
+// 'form.login.about' => 'Anuko <a href="https://www.anuko.com/lp/tt_2.htm" target="_blank">Time Tracker</a> is an open source time tracking system.',
+
+// Email subject and body for two-factor authentication.
+// TODO: translate the following.
+// 'email.2fa_code.subject' => 'Anuko Time Tracker two-factor authentication code',
+// 'email.2fa_code.body' => "Dear User,\n\nYour two-factor authentication code is:\n\n%s\n\n",
+
+// Two-factor authentication form. See example at https://timetracker.anuko.com/2fa.php.
+// TODO: translate the following.
+// 'form.2fa.hint' => 'Check your email for 2FA code and enter it here.',
+// 'form.2fa.2fa_code' => '2FA code',
 
 // Resetting Password form. See example at https://timetracker.anuko.com/password_reset.php.
 'form.reset_password.message' => '送信したパスワードの初期化の要求。', // TODO: add "by email" to match the English string.
 'form.reset_password.email_subject' => 'Anuko Time Trackerのパスワードの初期化の要求',
 // TODO: translate the ending of this string.
-// TODO: English string has changed. "from IP added. Re-translate the beginning.
-// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is a simple, easy to use, open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
+// TODO: English string has changed. Re-translate.
+// 'form.reset_password.email_body' => "Dear User,\n\nSomeone from IP %s requested your Anuko Time Tracker password reset. Please visit this link if you want to reset your password.\n\n%s\n\nAnuko Time Tracker is an open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
 // Older translation is below.
-// 'form.reset_password.email_body' => "尊敬なるお客様、\n\n誰から（多分あなた）あなたのAnuko Time Trackerのパスワードの初期化が要求されました。あなたのパスワードを初期化しようとこのリンクを押してください。\n\n%s\n\nAnuko Time Tracker is a simple, easy to use, open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
+// 'form.reset_password.email_body' => "尊敬なるお客様、\n\n誰から（多分あなた）あなたのAnuko Time Trackerのパスワードの初期化が要求されました。あなたのパスワードを初期化しようとこのリンクを押してください。\n\n%s\n\nAnuko Time Tracker is an open source time tracking system. Visit https://www.anuko.com for more information.\n\n",
 
 
 // Changing Password form. See example at https://timetracker.anuko.com/password_change.php?ref=1.
@@ -435,9 +477,15 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'form.reports.include_invoiced' => 'invoiced',
 // 'form.reports.include_not_invoiced' => 'not invoiced',
+// 'form.reports.include_assigned' => 'assigned',
+// 'form.reports.include_not_assigned' => 'not assigned',
+// 'form.reports.include_pending' => 'pending',
 'form.reports.select_period' => '時間期間の選択',
 'form.reports.set_period' => 'あるいは日付を設定',
 'form.reports.show_fields' => 'フィールドの表示',
+// TODO: translate the following.
+// 'form.reports.time_fields' => 'Time fields',
+// 'form.reports.user_fields' => 'User fields',
 'form.reports.group_by' => '次のようにグループ化',
 'form.reports.group_by_no' => '--- グループの機能がありません ---',
 'form.reports.group_by_date' => '日付',
@@ -453,9 +501,20 @@ $i18n_key_words = array(
 'form.report.export' => '輸出する', // TODO: is this correct?
 // TODO: translate the following.
 // 'form.report.assign_to_invoice' => 'Assign to invoice',
+// 'form.report.assign_to_timesheet' => 'Assign to timesheet',
 
-// Invoice form. See example at https://timetracker.anuko.com/invoice.php
-// (you can get to this form after generating a report).
+// Timesheets form. See example at https://timetracker.anuko.com/timesheets.php
+// TODO: translate the following.
+// 'form.timesheets.active_timesheets' => 'Active Timesheets',
+// 'form.timesheets.inactive_timesheets' => 'Inactive Timesheets',
+
+// Templates form. See example at https://timetracker.anuko.com/templates.php
+// TODO: translate the following.
+// 'form.templates.active_templates' => 'Active Templates',
+// 'form.templates.inactive_templates' => 'Inactive Templates',
+
+// Invoice form. See example at https://timetracker.anuko.com/invoice_view.php
+// (you can get to this form after generating an invoice).
 'form.invoice.number' => '送り状の番号',
 'form.invoice.person' => '個人',
 
@@ -481,8 +540,7 @@ $i18n_key_words = array(
 
 // Users form. See example at https://timetracker.anuko.com/users.php
 // TODO: translate the following.
-// 'form.users.active_users' => 'Active Users',
-// 'form.users.inactive_users' => 'Inactive Users',
+// 'form.users.uncompleted_entry_today' => 'User has an uncompleted time entry today',
 // 'form.users.uncompleted_entry' => 'User has an uncompleted time entry',
 'form.users.role' => '役割', // TODO: is this correct?
 'form.users.manager' => '管理者',
@@ -533,7 +591,8 @@ $i18n_key_words = array(
 // TODO: translate the following.
 // 'form.group_edit.12_hours' => '12 hours',
 // 'form.group_edit.24_hours' => '24 hours',
-// 'form.group_edit.show_holidays' => 'Show holidays',
+// 'form.group_edit.display_options' => 'Display options',
+// 'form.group_edit.holidays' => 'Holidays',
 // 'form.group_edit.tracking_mode' => 'Tracking mode',
 // 'form.group_edit.mode_time' => 'time',
 // 'form.group_edit.mode_projects' => 'projects',
@@ -543,22 +602,28 @@ $i18n_key_words = array(
 // 'form.group_edit.type_start_finish' => 'start and finish',
 // 'form.group_edit.type_duration' => 'duration',
 // 'form.group_edit.punch_mode' => 'Punch mode',
+// 'form.group_edit.one_uncompleted' => 'One uncompleted',
 // 'form.group_edit.allow_overlap' => 'Allow overlap',
 // 'form.group_edit.future_entries' => 'Future entries',
 // 'form.group_edit.uncompleted_indicators' => 'Uncompleted indicators',
 // 'form.group_edit.confirm_save' => 'Confirm saving',
-// 'form.group_edit.allow_ip' => 'Allow IP',
+// 'form.group_edit.advanced_settings' => 'Advanced settings',
+
+// Advanced Group Settings form. See example at https://timetracker.anuko.com/group_advanced_edit.php.
+// TODO: Translate the following.
+// 'form.group_advanced_edit.allow_ip' => 'Allow IP',
+// 'form.group_advanced_edit.password_complexity' => 'Password complexity',
+// 'form.group_advanced_edit.2fa' => 'Two factor authentication',
 
 // Deleting Group form. See example at https://timetracker.anuko.com/delete_group.php
 // TODO: translate the following.
 // 'form.group_delete.hint' => 'Are you sure you want to delete the entire group?',
 
 // Mail form. See example at https://timetracker.anuko.com/report_send.php when emailing a report.
-'form.mail.from' => 'から',
 'form.mail.to' => 'まで',
 // TODO: translate the following.
 // 'form.mail.report_subject' => 'Time Tracker Report',
-// 'form.mail.footer' => 'Anuko Time Tracker is a simple, easy to use, open source<br>time tracking system. Visit <a href="https://www.anuko.com">www.anuko.com</a> for more information.',
+// 'form.mail.footer' => 'Anuko Time Tracker is an open source<br>time tracking system. Visit <a href="https://www.anuko.com">www.anuko.com</a> for more information.',
 // 'form.mail.report_sent' => 'Report sent.',
 'form.mail.invoice_sent' => '送信した送り状。',
 
@@ -586,7 +651,7 @@ $i18n_key_words = array(
 // 'role.user.description' => 'A regular member without management rights.',
 // 'role.client.label' => 'Client',
 // 'role.client.low_case_label' => 'client',
-// 'role.client.description' => 'A client can view its own reports, charts, and invoices.',
+// 'role.client.description' => 'A client can view its own data.',
 // 'role.supervisor.label' => 'Supervisor',
 // 'role.supervisor.low_case_label' => 'supervisor',
 // 'role.supervisor.description' => 'A person with a small set of management rights.',
@@ -602,4 +667,20 @@ $i18n_key_words = array(
 // 'role.admin.label' => 'Administrator',
 // 'role.admin.low_case_label' => 'administrator',
 // 'role.admin.description' => 'Site adminsitrator.',
+
+// Timesheet View form. See example at https://timetracker.anuko.com/timesheet_view.php.
+// TODO: translate the following.
+// 'form.timesheet_view.submit_subject' => 'Timesheet approval request',
+// 'form.timesheet_view.submit_body' => "A new timesheet requires approval.<p>User: %s.",
+// 'form.timesheet_view.approve_subject' => 'Timesheet approved',
+// 'form.timesheet_view.approve_body' => "Your timesheet %s was approved.<p>%s",
+// 'form.timesheet_view.disapprove_subject' => 'Timesheet not approved',
+// 'form.timesheet_view.disapprove_body' => "Your timesheet %s was not approved.<p>%s",
+
+// Display Options form. See example at https://timetracker.anuko.com/display_options.php.
+// TODO: translate the following.
+// 'form.display_options.note_on_separate_row' => 'Note on separate row',
+// 'form.display_options.not_complete_days' => 'Not complete days',
+// 'form.display_options.inactive_projects' => 'Inactive projects',
+// 'form.display_options.custom_css' => 'Custom CSS',
 );

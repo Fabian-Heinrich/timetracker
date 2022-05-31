@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -38,26 +14,32 @@ if (!ttAccessAllowed('manage_features')) {
 
 if ($request->isPost()) {
   // Plugins that user wants to save for the current group.
-  $cl_charts = $request->getParameter('charts');
-  $cl_clients = $request->getParameter('clients');
-  $cl_client_required = $request->getParameter('client_required');
-  $cl_invoices = $request->getParameter('invoices');
-  $cl_paid_status = $request->getParameter('paid_status');
-  $cl_custom_fields = $request->getParameter('custom_fields');
-  $cl_expenses = $request->getParameter('expenses');
-  $cl_tax_expenses = $request->getParameter('tax_expenses');
-  $cl_notifications = $request->getParameter('notifications');
-  $cl_locking = $request->getParameter('locking');
-  $cl_quotas = $request->getParameter('quotas');
-  $cl_week_view = $request->getParameter('week_view');
-  $cl_work_units = $request->getParameter('work_units');
+  $cl_charts = (bool)$request->getParameter('charts');
+  $cl_puncher = (bool)$request->getParameter('puncher');
+  $cl_clients = (bool)$request->getParameter('clients');
+  $cl_client_required = (bool)$request->getParameter('client_required');
+  $cl_invoices = (bool)$request->getParameter('invoices');
+  $cl_paid_status = (bool)$request->getParameter('paid_status');
+  $cl_custom_fields = (bool)$request->getParameter('custom_fields');
+  $cl_expenses = (bool)$request->getParameter('expenses');
+  $cl_tax_expenses = (bool)$request->getParameter('tax_expenses');
+  $cl_notifications = (bool)$request->getParameter('notifications');
+  $cl_locking = (bool)$request->getParameter('locking');
+  $cl_quotas = (bool)$request->getParameter('quotas');
+  $cl_week_view = (bool)$request->getParameter('week_view');
+  $cl_work_units = (bool)$request->getParameter('work_units');
+  $cl_approval = (bool)$request->getParameter('approval');
+  $cl_timesheets = (bool)$request->getParameter('timesheets');
+  $cl_templates = (bool)$request->getParameter('templates');
+  $cl_attachments = (bool)$request->getParameter('attachments');
 } else {
   // Note: we get here in get, and also in post when group changes.
   // Which plugins do we have enabled in currently selected group?
   $plugins = explode(',', $user->getPlugins());
   $cl_charts = in_array('ch', $plugins);
+  $cl_puncher = in_array('pu', $plugins);
   $cl_clients = in_array('cl', $plugins);
-  $cl_client_required = in_array('cm', $plugins);
+  $cl_client_required = $user->isOptionEnabled('client_required');
   $cl_invoices = in_array('iv', $plugins);
   $cl_paid_status = in_array('ps', $plugins);
   $cl_custom_fields = in_array('cf', $plugins);
@@ -68,6 +50,10 @@ if ($request->isPost()) {
   $cl_quotas = in_array('mq', $plugins);
   $cl_week_view = in_array('wv', $plugins);
   $cl_work_units = in_array('wu', $plugins);
+  $cl_approval = in_array('ap', $plugins);
+  $cl_timesheets = in_array('ts', $plugins);
+  $cl_templates = in_array('tp', $plugins);
+  $cl_attachments = in_array('at', $plugins);
 }
 
 $form = new Form('pluginsForm');
@@ -84,8 +70,14 @@ $form->addInput(array('type'=>'checkbox','name'=>'tax_expenses','value'=>$cl_tax
 $form->addInput(array('type'=>'checkbox','name'=>'notifications','value'=>$cl_notifications,'onchange'=>'handlePluginCheckboxes()'));
 $form->addInput(array('type'=>'checkbox','name'=>'locking','value'=>$cl_locking,'onchange'=>'handlePluginCheckboxes()'));
 $form->addInput(array('type'=>'checkbox','name'=>'quotas','value'=>$cl_quotas,'onchange'=>'handlePluginCheckboxes()'));
+$form->addInput(array('type'=>'checkbox','name'=>'puncher','value'=>$cl_puncher,'onchange'=>'handlePluginCheckboxes()'));
 $form->addInput(array('type'=>'checkbox','name'=>'week_view','value'=>$cl_week_view,'onchange'=>'handlePluginCheckboxes()'));
 $form->addInput(array('type'=>'checkbox','name'=>'work_units','value'=>$cl_work_units,'onchange'=>'handlePluginCheckboxes()'));
+$form->addInput(array('type'=>'checkbox','name'=>'approval','value'=>$cl_approval));
+$form->addInput(array('type'=>'checkbox','name'=>'timesheets','value'=>$cl_timesheets));
+$form->addInput(array('type'=>'checkbox','name'=>'templates','value'=>$cl_templates,'onchange'=>'handlePluginCheckboxes()'));
+$form->addInput(array('type'=>'checkbox','name'=>'attachments','value'=>$cl_attachments,'onchange'=>'handlePluginCheckboxes()'));
+
 // Submit button.
 $form->addInput(array('type'=>'submit','name'=>'btn_save','value'=>$i18n->get('button.save')));
 
@@ -94,12 +86,13 @@ if ($request->isPost()) {
   // We update plugin list for the current group.
 
   // Prepare plugins string.
+  $plugins = '';
   if ($cl_charts)
     $plugins .= ',ch';
+  if ($cl_puncher)
+    $plugins .= ',pu';
   if ($cl_clients)
      $plugins .= ',cl';
-  if ($cl_client_required)
-    $plugins .= ',cm';
   if ($cl_invoices)
     $plugins .= ',iv';
   if ($cl_paid_status)
@@ -120,21 +113,25 @@ if ($request->isPost()) {
     $plugins .= ',wv';
   if ($cl_work_units)
     $plugins .= ',wu';
-
-  // Recycle week view plugin options as they are not configured on this page.
-  $existing_plugins = explode(',', $user->getPlugins());
-  if (in_array('wvn', $existing_plugins))
-    $plugins .= ',wvn';
-  if (in_array('wvl', $existing_plugins))
-    $plugins .= ',wvl';
-  if (in_array('wvns', $existing_plugins))
-    $plugins .= ',wvns';
-
+  if ($cl_approval)
+    $plugins .= ',ap';
+  if ($cl_timesheets)
+    $plugins .= ',ts';
+  if ($cl_templates)
+    $plugins .= ',tp';
+  if ($cl_attachments)
+    $plugins .= ',at';
   $plugins = trim($plugins, ',');
 
+  // Prepare a new config string.
+  $user->setOption('client_required', $cl_client_required);
+  $user->setOption('tax_expenses', $cl_tax_expenses);
+  $config = $user->getConfig();
+
   if ($user->updateGroup(array(
-    'plugins' => $plugins))) {
-    header('Location: success.php');
+    'plugins' => $plugins,
+    'config' => $config))) {
+    header('Location: plugins.php');
     exit();
   } else
     $err->add($i18n->get('error.db'));

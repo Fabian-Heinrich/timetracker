@@ -23,11 +23,12 @@
 // |
 // +----------------------------------------------------------------------+
 // | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
+// | https://www.anuko.com/time-tracker/credits.htm
 // +----------------------------------------------------------------------+
 
 import('ttUserHelper');
 import('ttGroupHelper');
+import('ttClientHelper');
 
 // Class ttProjectHelper is used to help with project related tasks.
 class ttProjectHelper {
@@ -44,7 +45,7 @@ class ttProjectHelper {
     // Do a query with inner join to get assigned projects.
     $sql = "select p.id, p.name, p.tasks, upb.rate from tt_projects p".
       " inner join tt_user_project_binds upb on (upb.user_id = $user_id and upb.project_id = p.id and upb.status = 1)".
-      " where p.group_id = $group_id and p.org_id = $org_id and p.status = 1 order by p.name";
+      " where p.group_id = $group_id and p.org_id = $org_id and p.status = 1 order by upper(p.name)";
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
       while ($val = $res->fetchRow()) {
@@ -76,17 +77,23 @@ class ttProjectHelper {
     return $result;
   }
   
-  // getProjects - returns an array of active and inactive projects in group.
-  static function getProjects() {
+  // getProjects - returns an array of projects for group.
+  static function getProjects($includeInactiveProjects = true) {
     global $user;
     $mdb2 = getConnection();
 
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
+    // Construct status part.
+    $statusPart = 'status = 1';
+    if ($includeInactiveProjects) {
+      $statusPart = '(status = 0 or '.$statusPart.')';
+    }
+
     $result = array();
     $sql = "select id, name, tasks from tt_projects".
-      " where group_id = $group_id and org_id = $org_id and (status = 0 or status = 1) order by name";
+      " where group_id = $group_id and org_id = $org_id and $statusPart order by upper(name)";
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
       while ($val = $res->fetchRow()) {
@@ -108,7 +115,7 @@ class ttProjectHelper {
     $sql = "select p.id, p.name, p.tasks from tt_projects p".
       " inner join tt_client_project_binds cpb on (cpb.client_id = $user->client_id and cpb.project_id = p.id)".
       " where p.group_id = $group_id and p.org_id = $org_id and (p.status = 0 or p.status = 1)".
-      " order by p.name";
+      " order by upper(p.name)";
 
     $res = $mdb2->query($sql);
     if (!is_a($res, 'PEAR_Error')) {
@@ -164,6 +171,15 @@ class ttProjectHelper {
     global $user;
     $mdb2 = getConnection();
 
+    // Delete associated files.
+    if ($user->isPluginEnabled('at')) {
+      import('ttFileHelper');
+      global $err;
+      $fileHelper = new ttFileHelper($err);
+      if (!$fileHelper->deleteEntityFiles($id, 'project'))
+        return false;
+    }
+
     $group_id = $user->getGroup();
     $org_id = $user->org_id;
 
@@ -192,6 +208,20 @@ class ttProjectHelper {
     $sql = "delete from tt_client_project_binds where project_id = $id and group_id = $group_id and org_id = $org_id";
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Delete template binds to this project.
+    $sql = "delete from tt_project_template_binds where project_id = $id and group_id = $group_id and org_id = $org_id";
+    $affected = $mdb2->exec($sql);
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Delete the project from the projects field in tt_clients table.
+    if (!ttClientHelper::deleteProject($id))
+      return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
       return false;
 
     return true;
@@ -244,6 +274,10 @@ class ttProjectHelper {
           return false;
       }
     }
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
 
     return $last_id;
   } 
@@ -323,14 +357,26 @@ class ttProjectHelper {
         return false;
     }
     // End of updating tt_project_task_binds table.
-    
+
+    // If we are making the project inactive, unassign it from all clients.
+    if (constant('INACTIVE') == $status) {
+      ttClientHelper::unassignProjectFromAllClients($project_id);
+    }
+
     // Update project name, description, tasks and status in tt_projects table.
     $comma_separated = implode(",", $tasks_to_bind); // This is a comma-separated list of associated task ids.
     $sql = "update tt_projects set name = ".$mdb2->quote($name).", description = ".$mdb2->quote($description).
       ", tasks = ".$mdb2->quote($comma_separated).", status = ".$mdb2->quote($status).
       " where id = $project_id and group_id = $group_id and org_id = $org_id";
     $affected = $mdb2->exec($sql);
-    return (!is_a($affected, 'PEAR_Error'));
+    if (is_a($affected, 'PEAR_Error'))
+      return false;
+
+    // Update entities_modified, too.
+    if (!ttGroupHelper::updateEntitiesModified())
+      return false;
+
+    return true;
   }
 
   // getAssignedUsers - returns an array of user ids assigned to a project.

@@ -1,33 +1,8 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 import('ttUserHelper');
-import('DateAndTime');
 import('ttInvoiceHelper');
 
 // Class ttTeamHelper - contains helper functions that operate with groups.
@@ -136,7 +111,7 @@ class ttTeamHelper {
     // then rank restriction does not apply.
     $max_rank = $user->behalfGroup ? MAX_RANK : $user->rank;
 
-    $sql = "select id, name, description, rank, rights from tt_roles where group_id = $group_id and org_id = $org_id and rank < $max_rank and status = 1 order by rank";
+    $sql = "select id, name, description, `rank`, rights from tt_roles where group_id = $group_id and org_id = $org_id and `rank` < $max_rank and status = 1 order by `rank`";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -156,7 +131,7 @@ class ttTeamHelper {
     $result = array();
     $mdb2 = getConnection();
 
-    $sql = "select id, name, description, rank, rights from tt_roles where group_id = $group_id and status = 1 order by rank";
+    $sql = "select id, name, description, `rank`, rights from tt_roles where group_id = $group_id and status = 1 order by `rank`";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -174,8 +149,8 @@ class ttTeamHelper {
     $result = array();
     $mdb2 = getConnection();
 
-    $sql = "select id, name, rank, description from tt_roles
-      where group_id = $group_id and status = 0 order by rank";
+    $sql = "select id, name, `rank`, description from tt_roles
+      where group_id = $group_id and status = 0 order by `rank`";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -201,7 +176,7 @@ class ttTeamHelper {
     // then rank restriction does not apply.
     $max_rank = $user->behalfGroup ? MAX_RANK : $user->rank;
 
-    $sql = "select id, name, description, rank, rights from tt_roles where group_id = $group_id and org_id = $org_id and rank < $max_rank and status = 0 order by rank";
+    $sql = "select id, name, description, `rank`, rights from tt_roles where group_id = $group_id and org_id = $org_id and `rank` < $max_rank and status = 0 order by `rank`";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
@@ -247,7 +222,6 @@ class ttTeamHelper {
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {
-      $dt = new DateAndTime(DB_DATEFORMAT);
       while ($val = $res->fetchRow()) {
         $result[] = $val;
       }
@@ -365,46 +339,12 @@ class ttTeamHelper {
     return false;
   }
 
-  // The getCustomFieldLog obtains all custom field log entries for a group.
-  static function getCustomFieldLog($group_id) {
-    $mdb2 = getConnection();
-
-    $sql = "select * from tt_custom_field_log where field_id in (select id from tt_custom_fields where group_id = $group_id) order by id";
-
-    $res = $mdb2->query($sql);
-    $result = array();
-    if (!is_a($res, 'PEAR_Error')) {
-      while ($val = $res->fetchRow()) {
-        $result[] = $val;
-      }
-      return $result;
-    }
-    return false;
-  }
-
   // getFavReports - obtains all favorite reports for all users in a group.
   static function getFavReports($group_id) {
     $mdb2 = getConnection();
 
     $result = array();
     $sql = "select * from tt_fav_reports where user_id in (select id from tt_users where group_id = $group_id)";
-    $res = $mdb2->query($sql);
-    $result = array();
-    if (!is_a($res, 'PEAR_Error')) {
-      while ($val = $res->fetchRow()) {
-        $result[] = $val;
-      }
-      return $result;
-    }
-    return false;
-  }
-
-  // getExpenseItems - obtains all expense items for all users in a group.
-  static function getExpenseItems($group_id) {
-    $mdb2 = getConnection();
-
-    $result = array();
-    $sql = "select * from tt_expense_items where user_id in (select id from tt_users where group_id = $group_id)";
     $res = $mdb2->query($sql);
     $result = array();
     if (!is_a($res, 'PEAR_Error')) {

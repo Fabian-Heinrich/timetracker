@@ -23,7 +23,7 @@
 // |
 // +----------------------------------------------------------------------+
 // | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
+// | https://www.anuko.com/time-tracker/credits.htm
 // +----------------------------------------------------------------------+
 
 import('ttRoleHelper');
@@ -103,7 +103,6 @@ class ttCronJobHelper {
 
     // Drop things we don't need.
     unset($val['id']);
-    unset($val['report_spec']);
     unset($val['status']);
 
     return $val;

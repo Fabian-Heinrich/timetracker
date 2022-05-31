@@ -1,40 +1,37 @@
+{* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt *}
+
 {$forms.taskForm.open}
-<table cellspacing="4" cellpadding="7" border="0">
+<table class="centered-table">
+  <tr class = "small-screen-label"><td><label for="name">{$i18n.label.thing_name} (*):</label></td></tr>
   <tr>
-    <td>
-      <table cellspacing="1" cellpadding="2" border="0">
-        <tr>
-          <td align="right">{$i18n.label.thing_name} (*):</td>
-          <td>{$forms.taskForm.name.control}</td>
-        </tr>
-        <tr>
-          <td align = "right">{$i18n.label.description}:</td>
-          <td>{$forms.taskForm.description.control}</td>
-        </tr>
-        <tr>
-          <td align = "right">{$i18n.label.status}:</td>
-          <td>{$forms.taskForm.status.control}</td>
-        </tr>
-{if $show_projects}
-        <tr><td>&nbsp;</td></tr>
-        <tr valign="top">
-          <td align="right">{$i18n.label.projects}:</td>
-          <td>{$forms.taskForm.projects.control}</td>
-        </tr>
-{/if}
-        <tr>
-          <td></td>
-          <td>{$i18n.label.required_fields}</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>&nbsp;</td>
-        </tr>
-        <tr>
-          <td colspan="2" align="center" height="50">{$forms.taskForm.btn_save.control} {$forms.taskForm.btn_copy.control}</td>
-        </tr>
-      </table>
-    </td>
+    <td class="large-screen-label"><label for="name">{$i18n.label.thing_name} (*):</label></td>
+    <td class="td-with-input">{$forms.taskForm.name.control}</td>
   </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="description">{$i18n.label.description}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="description">{$i18n.label.description}:</label></td>
+    <td class="td-with-input">{$forms.taskForm.description.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="status">{$i18n.label.status}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="status">{$i18n.label.status}:</label></td>
+    <td class="td-with-input">{$forms.taskForm.status.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{if $show_projects}
+  <tr><td><div class="form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td>{$i18n.label.projects}:</td></tr>
+  <tr>
+    <td class="large-screen-label">{$i18n.label.projects}:</td>
+    <td class="td-with-checkboxes">{$forms.taskForm.projects.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+{/if}
+  <tr><td colspan="2">{$i18n.label.required_fields}</td></tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
 </table>
+<div class="button-set">{$forms.taskForm.btn_save.control} {$forms.taskForm.btn_copy.control}</div>
 {$forms.taskForm.close}

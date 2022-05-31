@@ -1,44 +1,22 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 // Note: This script uses Lichart PHP library and requires GD 2.0.1 or later.
 
 require_once('initialize.php');
 import('form.Form');
-import('DateAndTime');
+import('ttDate');
 import('ttChartHelper');
 import('ttUserConfig');
 import('PieChartEx');
 import('ttUserHelper');
 import('ttTeamHelper');
 
+define('ALL_USERS_OPTION_ID', -1); // An identifier for "all users" seclection in User dropdown.
+
 // Access checks.
-if (!(ttAccessAllowed('view_own_charts') || ttAccessAllowed('view_charts'))) {
+if (!(ttAccessAllowed('view_own_charts') || ttAccessAllowed('view_charts') || ttAccessAllowed('view_all_charts'))) {
   header('Location: access_denied.php');
   exit();
 }
@@ -50,7 +28,7 @@ if (!$user->exists()) {
   header('Location: access_denied.php'); // Nobody to display a chart for.
   exit();
 }
-if ($user->behalf_id && (!$user->can('view_charts') || !$user->checkBehalfId())) {
+if ($user->behalf_id && (!($user->can('view_charts') || $user->can('view_all_charts')) || !$user->checkBehalfId())) {
   header('Location: access_denied.php'); // Trying on behalf, but no right or wrong user.
   exit();
 }
@@ -58,21 +36,34 @@ if (!$user->behalf_id && !$user->can('view_own_charts') && !$user->adjustBehalfI
   header('Location: access_denied.php'); // Trying as self, but no right for self, and noone to view on behalf.
   exit();
 }
+$userDropdownSelectionId = (int) $request->getParameter('user'); // Resused below access checks.
 if ($request->isPost() && $request->getParameter('user')) {
-  if (!$user->isUserValid($request->getParameter('user'))) {
+  if ($userDropdownSelectionId == constant('ALL_USERS_OPTION_ID') && !ttAccessAllowed('view_all_charts')) {
+    header('Location: access_denied.php'); // All users option is only for users with view_all_charts access right.
+    exit();
+  }
+  if ($userDropdownSelectionId != constant('ALL_USERS_OPTION_ID') && !$user->isUserValid($userDropdownSelectionId)) {
     header('Location: access_denied.php'); // Wrong user id on post.
     exit();
   }
 }
+$date = $request->getParameter('date');
+if ($date && !ttValidDbDateFormatDate($date)) {
+  header('Location: access_denied.php');
+  exit();
+}
 // End of access checks.
 
-// Determine user for which we display this page.
-$userChanged = $request->getParameter('user_changed');
-if ($request->isPost() && $userChanged) {
-  $user_id = $request->getParameter('user');
-  $user->setOnBehalfUser($user_id);
-} else {
-  $user_id = $user->getUser();
+// Determine user for whom we display this page.
+$userChanged = (int) $request->getParameter('user_changed');
+if ($request->isPost() && $userChanged ) {
+  if ($userDropdownSelectionId != constant('ALL_USERS_OPTION_ID')) {
+    $user->setOnBehalfUser($userDropdownSelectionId);
+  }
+}
+if ($request->isGet()) {
+  $userDropdownSelectionId = $user->getUser();
+  // Note that this may change to ALL_USERS_OPTION_ID below from session.
 }
 
 $uc = new ttUserConfig();
@@ -81,55 +72,69 @@ $tracking_mode = $user->getTrackingMode();
 // Initialize and store date in session.
 $cl_date = $request->getParameter('date', @$_SESSION['date']);
 if(!$cl_date) {
-  $now = new DateAndTime(DB_DATEFORMAT);
-  $cl_date = $now->toString(DB_DATEFORMAT);
+  $now = new ttDate();
+  $cl_date = $now->toString();
 }
 $_SESSION['date'] = $cl_date;
 
 if ($request->isPost()) {
-  $cl_interval = $request->getParameter('interval');
+  $cl_interval = (int)$request->getParameter('interval');
   if (!$cl_interval) $cl_interval = INTERVAL_THIS_MONTH;
   $_SESSION['chart_interval'] = $cl_interval;
   $uc->setValue(SYSC_CHART_INTERVAL, $cl_interval);
 
-  $cl_type = $request->getParameter('type');
+  $cl_type = (int)$request->getParameter('type');
   if (!$cl_type) $cl_type = ttChartHelper::adjustType($cl_type);
   $_SESSION['chart_type'] = $cl_type;
   $uc->setValue(SYSC_CHART_TYPE, $cl_type);
+
+  // Remember all users selection in session.
+  $_SESSION['chart_all_users'] = $userDropdownSelectionId == constant('ALL_USERS_OPTION_ID') ? true : false;
 } else {
   // Initialize chart interval.
-  $cl_interval = $_SESSION['chart_interval'];
+  $cl_interval = @$_SESSION['chart_interval'];
   if (!$cl_interval) $cl_interval = $uc->getValue(SYSC_CHART_INTERVAL);
   if (!$cl_interval) $cl_interval = INTERVAL_THIS_MONTH;
   $_SESSION['chart_interval'] = $cl_interval;
 
   // Initialize chart type.
-  $cl_type = $_SESSION['chart_type'];
+  $cl_type = @$_SESSION['chart_type'];
   if (!$cl_type) $cl_type = $uc->getValue(SYSC_CHART_TYPE);
   $cl_type = ttChartHelper::adjustType($cl_type);
   $_SESSION['chart_type'] = $cl_type;
+
+  // Set user selection to all users, if necessary.
+  $allUsersSetInSession = @$_SESSION['chart_all_users'];
+  if ($allUsersSetInSession)
+      $userDropdownSelectionId = constant('ALL_USERS_OPTION_ID');
 }
 
 // Elements of chartForm.
 $chart_form = new Form('chartForm');
+$largeScreenCalendarRowSpan = 1; // Number of rows calendar spans on large screens.
 
-// User dropdown. Changes the user "on behalf" of whom we are working. 
-if ($user->can('view_charts')) {
+// User dropdown. Changes the user "on behalf" of whom we are working.
+if ($user->can('view_charts') || $user->can('view_all_charts')) {
   $rank = $user->getMaxRankForGroup($user->getGroup());
   if ($user->can('view_own_charts'))
     $options = array('status'=>ACTIVE,'max_rank'=>$rank,'include_self'=>true,'self_first'=>true);
   else
     $options = array('status'=>ACTIVE,'max_rank'=>$rank);
   $user_list = $user->getUsers($options);
+  // Add the --- all --- option to dropdown.
+  if ($user->can('view_all_charts')) {
+      $user_list[] = array('id'=>'-1','group_id'=>$user->getGroup(), 'name'=>$i18n->get('dropdown.all'), 'rights'=>'');
+  }
   if (count($user_list) >= 1) {
     $chart_form->addInput(array('type'=>'combobox',
       'onchange'=>'this.form.user_changed.value=1;this.form.submit();',
       'name'=>'user',
-      'value'=>$user_id,
+      'value'=>$userDropdownSelectionId,
       'data'=>$user_list,
       'datakeys'=>array('id','name'),
     ));
     $chart_form->addInput(array('type'=>'hidden','name'=>'user_changed'));
+    $largeScreenCalendarRowSpan += 2;
     $smarty->assign('user_dropdown', 1);
   }
 }
@@ -149,6 +154,7 @@ $chart_form->addInput(array('type' => 'combobox',
   'value' => $cl_interval,
   'data' => $intervals
 ));
+$largeScreenCalendarRowSpan += 2;
 
 // Chart type options.
 $chart_selector = (MODE_PROJECTS_AND_TASKS == $tracking_mode || $user->isPluginEnabled('cl'));
@@ -168,13 +174,14 @@ if ($chart_selector) {
     'value' => $cl_type,
     'data' => $types
   ));
+  $largeScreenCalendarRowSpan += 2;
 }
 
 // Calendar.
 $chart_form->addInput(array('type'=>'calendar','name'=>'date','value'=>$cl_date)); // calendar
 
 // Get data for our chart.
-$totals = ttChartHelper::getTotals($user_id, $cl_type, $cl_date, $cl_interval);
+$totals = ttChartHelper::getTotals($userDropdownSelectionId, $cl_type, $cl_date, $cl_interval);
 $smarty->assign('totals', $totals);
 
 // Prepare chart for drawing.
@@ -196,20 +203,22 @@ $data_set = new XYDataSet();
 foreach($totals as $total) {
   $data_set->addPoint(new Point( $total['name'], $total['time']));
 }
-$chart->setDataSet($data_set); 
+$chart->setDataSet($data_set);
 
 // Prepare a file name.
 $img_dir = TEMPLATE_DIR.'_c/'; // Directory.
 $file_name = uniqid('chart_').'.png'; // Short file name. Unique ID here is to avoid problems with browser caching.
 $img_ref = 'WEB-INF/templates_c/'.$file_name; // Image reference for html.
-$file_name = $img_dir.$file_name; // Full file name. 
+$file_name = $img_dir.$file_name; // Full file name.
 
 // Clean up the file system from older images.
 $img_files = glob($img_dir.'chart_*.png');
-foreach($img_files as $file) {
-  // If the create time of file is older than 1 minute, delete it.
-  if (filemtime($file) < (time() - 60)) {
-    unlink($file);
+if (is_array($img_files)) {
+  foreach($img_files as $file) {
+    // If file creation time is older than 1 minute, delete it.
+    if (filemtime($file) < (time() - 60)) {
+      unlink($file);
+    }
   }
 }
 
@@ -217,8 +226,10 @@ foreach($img_files as $file) {
 $chart->renderEx(array('fileName'=>$file_name,'hideLogo'=>true,'hideTitle'=>true,'hideLabel'=>true));
 // At this point libchart usage is complete and we have chart image on disk.
 
+$smarty->assign('large_screen_calendar_row_span', $largeScreenCalendarRowSpan);
 $smarty->assign('img_file_name', $img_ref);
 $smarty->assign('chart_selector', $chart_selector);
+$smarty->assign('onload', 'onLoad="adjustTodayLinks()"');
 $smarty->assign('forms', array($chart_form->getName() => $chart_form->toArray()));
 $smarty->assign('title', $i18n->get('title.charts'));
 $smarty->assign('content_page_name', 'charts.tpl');

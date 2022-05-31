@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -34,33 +10,39 @@ if (!ttAccessAllowed('manage_advanced_settings')) {
   header('Location: access_denied.php');
   exit();
 }
-if (!$user->isPluginEnabled('wv')) {
-  header('Location: feature_disabled.php');
-  exit();
-}
+
+$config = $user->getConfigHelper();
 
 if ($request->isPost()) {
-  $cl_week_note = $request->getParameter('week_note');
-  $cl_week_list = $request->getParameter('week_list');
-  $cl_notes = $request->getParameter('notes');
+  $cl_week_menu = (bool)$request->getParameter('week_menu');
+  $cl_week_note = (bool)$request->getParameter('week_note');
+  $cl_week_list = (bool)$request->getParameter('week_list');
+  $cl_notes = (bool)$request->getParameter('notes');
+  $cl_weekends = (bool)$request->getParameter('weekends');
 } else {
-  $plugins = explode(',', $user->plugins);
-  $cl_week_note = in_array('wvn', $plugins);
-  $cl_week_list = in_array('wvl', $plugins);
-  $cl_notes = in_array('wvns', $plugins);
+  $cl_week_menu =  $config->getDefinedValue('week_menu');
+  $cl_week_note = $config->getDefinedValue('week_note');
+  $cl_week_list = $config->getDefinedValue('week_list');
+  $cl_notes = $config->getDefinedValue('week_notes');
+  $cl_weekends = $config->getDefinedValue('weekends');
 }
 
-
 $form = new Form('weekViewForm');
+$form->addInput(array('type'=>'checkbox','name'=>'week_menu','value'=>$cl_week_menu));
 $form->addInput(array('type'=>'checkbox','name'=>'week_note','value'=>$cl_week_note));
 $form->addInput(array('type'=>'checkbox','name'=>'week_list','value'=>$cl_week_list));
 $form->addInput(array('type'=>'checkbox','name'=>'notes','value'=>$cl_notes));
+$form->addInput(array('type'=>'checkbox','name'=>'weekends','value'=>$cl_weekends));
 $form->addInput(array('type'=>'submit','name'=>'btn_save','value'=>$i18n->get('button.save')));
 
 if ($request->isPost()){
-  if (!$user->enablePlugin('wvn', $cl_week_note) ||
-      !$user->enablePlugin('wvl', $cl_week_list) ||
-      !$user->enablePlugin('wvns', $cl_notes)) {
+  // Update config.
+  $config->setDefinedValue('week_menu', $cl_week_menu);
+  $config->setDefinedValue('week_note', $cl_week_note);
+  $config->setDefinedValue('week_list', $cl_week_list);
+  $config->setDefinedValue('week_notes', $cl_notes);
+  $config->setDefinedValue('weekends', $cl_weekends);
+  if (!$user->updateGroup(array('config' => $config->getConfig()))) {
     $err->add($i18n->get('error.db'));
   }
 }

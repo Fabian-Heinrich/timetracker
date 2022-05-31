@@ -1,30 +1,6 @@
 <?php
-// +----------------------------------------------------------------------+
-// | Anuko Time Tracker
-// +----------------------------------------------------------------------+
-// | Copyright (c) Anuko International Ltd. (https://www.anuko.com)
-// +----------------------------------------------------------------------+
-// | LIBERAL FREEWARE LICENSE: This source code document may be used
-// | by anyone for any purpose, and freely redistributed alone or in
-// | combination with other software, provided that the license is obeyed.
-// |
-// | There are only two ways to violate the license:
-// |
-// | 1. To redistribute this code in source form, with the copyright
-// |    notice or license removed or altered. (Distributing in compiled
-// |    forms without embedded copyright notices is permitted).
-// |
-// | 2. To redistribute modified versions of this code in *any* form
-// |    that bears insufficient indications that the modifications are
-// |    not the work of the original author(s).
-// |
-// | This license applies to this document only, not any other software
-// | that it may be combined with.
-// |
-// +----------------------------------------------------------------------+
-// | Contributors:
-// | https://www.anuko.com/time_tracker/credits.htm
-// +----------------------------------------------------------------------+
+/* Copyright (c) Anuko International Ltd. https://www.anuko.com
+License: See license.txt */
 
 require_once('initialize.php');
 import('form.Form');
@@ -32,7 +8,8 @@ import('ttUserHelper');
 import('ttGroupHelper');
 import('ttClientHelper');
 import('ttTimeHelper');
-import('DateAndTime');
+import('ttConfigHelper');
+import('ttDate');
 
 
 
@@ -56,15 +33,39 @@ if (!(ttAccessAllowed('track_own_time') || ttAccessAllowed('track_time'))) {
 }
 
 $cl_id = (int)$request->getParameter('id');
-$user_id = $user->getUser();
-$time_rec = ttTimeHelper::getRecord($cl_id, $user_id);
 
-if (!$time_rec || $time_rec['invoice_id']) {
-  // Prohibit editing not ours or invoiced records.
+$time_rec = ttTimeHelper::getRecord($cl_id);
+if (!$time_rec) $time_rec = ttTimeHelper::getOnBehalfRecord($cl_id);
+if (!$time_rec || $time_rec['approved'] || $time_rec['timesheet_id'] || $time_rec['invoice_id']) {
+  // Prohibit editing not ours, approved, assigned to timesheet, or invoiced records.
   header('Location: access_denied.php');
   exit();
 }
+if ($request->isPost()) {
+  // Validate that browser_today parameter is in correct format.
+  $browser_today = $request->getParameter('browser_today');
+  if ($browser_today && !ttValidDbDateFormatDate($browser_today)) {
+    header('Location: access_denied.php');
+    exit();
+  }
+}
 // End of access checks.
+
+$user_id = $user->getUser();
+$config = new ttConfigHelper($user->getConfig());
+
+$showClient = $user->isPluginEnabled('cl');
+$showBillable = $user->isPluginEnabled('iv');
+$showPaidStatus = $user->isPluginEnabled('ps') && $user->can('manage_invoices');
+$trackingMode = $user->getTrackingMode();
+$showProject = MODE_PROJECTS == $trackingMode || MODE_PROJECTS_AND_TASKS == $trackingMode;
+$showTask = MODE_PROJECTS_AND_TASKS == $trackingMode;
+$taskRequired = false;
+if ($showTask) $taskRequired = $config->getDefinedValue('task_required');
+$recordType = $user->getRecordType();
+$showStart = TYPE_START_FINISH == $recordType || TYPE_ALL == $recordType;
+$showDuration = TYPE_DURATION == $recordType || TYPE_ALL == $recordType;
+$oneUncompleted = $config->getDefinedValue('one_uncompleted');
 
 // Use custom fields plugin if it is enabled.
 if ($user->isPluginEnabled('cf')) {
@@ -73,15 +74,7 @@ if ($user->isPluginEnabled('cf')) {
   $smarty->assign('custom_fields', $custom_fields);
 }
 
-$cl_id = $request->getParameter('id');
-
-// Get the time record we are editing.
-$time_rec = ttTimeHelper::getRecord($cl_id, $user->getUser());
-
-// Prohibit editing invoiced records.
-if ($time_rec['invoice_id']) die($i18n->get('error.entry_invoiced'));
-
-$item_date = new DateAndTime(DB_DATEFORMAT, $time_rec['date']);
+$item_date = new ttDate($time_rec['date']);
 $confirm_save = $user->getConfigOption('confirm_save');
 
 // Initialize variables.
@@ -92,14 +85,26 @@ if ($request->isPost()) {
   $cl_duration = trim($request->getParameter('duration'));
   $cl_date = $request->getParameter('date');
   $cl_note = trim($request->getParameter('note'));
-  $cl_cf_1 = trim($request->getParameter('cf_1'));
+  // If we have time custom fields - collect input.
+  if (isset($custom_fields) && $custom_fields->timeFields) {
+    foreach ($custom_fields->timeFields as $timeField) {
+      $control_name = 'time_field_'.$timeField['id'];
+      $timeCustomFields[$timeField['id']] = array('field_id' => $timeField['id'],
+        'control_name' => $control_name,
+        'label' => $timeField['label'],
+        'type' => $timeField['type'],
+        'required' => $timeField['required'],
+        'value' => trim($request->getParameter($control_name)));
+    }
+  }
   $cl_client = $request->getParameter('client');
   $cl_project = $request->getParameter('project');
   $cl_task = $request->getParameter('task');
   $cl_billable = 1;
-  if ($user->isPluginEnabled('iv'))
+  if ($showBillable)
     $cl_billable = $request->getParameter('billable');
-  if ($user->isPluginEnabled('ps'))
+  $cl_paid = 0;
+  if ($showPaidStatus)
     $cl_paid = $request->getParameter('paid');
 } else {
   $cl_client = $time_rec['client_id'];
@@ -108,17 +113,20 @@ if ($request->isPost()) {
   $cl_start = $time_rec['start'];
   $cl_finish = $time_rec['finish'];
   $cl_duration = $time_rec['duration'];
-  $cl_date = $item_date->toString($user->date_format);
+  $cl_date = $item_date->toString($user->getDateFormat());
   $cl_note = $time_rec['comment'];
 
-  // If we have custom fields - obtain values for them.
-  if ($custom_fields) {
-    // Get custom field value for time record.
-    $fields = $custom_fields->get($time_rec['id']);
-    if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT)
-      $cl_cf_1 = $fields[0]['value'];
-    elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN)
-      $cl_cf_1 = $fields[0]['option_id'];
+  // If we have time custom fields - collect values from database.
+  if (isset($custom_fields) && $custom_fields->timeFields) {
+    foreach ($custom_fields->timeFields as $timeField) {
+      $control_name = 'time_field_'.$timeField['id'];
+      $timeCustomFields[$timeField['id']] = array('field_id' => $timeField['id'],
+        'control_name' => $control_name,
+        'label' => $timeField['label'],
+        'type' => $timeField['type'],
+        'required' => $timeField['required'],
+        'value' => $custom_fields->getTimeFieldValue($cl_id, $timeField['id'], $timeField['type']));
+    }
   }
 
   $cl_billable = $time_rec['billable'];
@@ -136,12 +144,12 @@ if ($request->isPost()) {
 $form = new Form('timeRecordForm');
 
 // Dropdown for clients in MODE_TIME. Use all active clients.
-if (MODE_TIME == $user->tracking_mode && $user->isPluginEnabled('cl')) {
+// Note: for other tracking modes the control is added further below.
+if (MODE_TIME == $trackingMode && $showClient) {
   $active_clients = ttGroupHelper::getActiveClients(true);
   $form->addInput(array('type'=>'combobox',
     'onchange'=>'fillProjectDropdown(this.value);',
     'name'=>'client',
-    'style'=>'width: 250px;',
     'value'=>$cl_client,
     'data'=>$active_clients,
     'datakeys'=>array('id', 'name'),
@@ -149,20 +157,45 @@ if (MODE_TIME == $user->tracking_mode && $user->isPluginEnabled('cl')) {
   // Note: in other modes the client list is filtered to relevant clients only. See below.
 }
 
-if (MODE_PROJECTS == $user->tracking_mode || MODE_PROJECTS_AND_TASKS == $user->tracking_mode) {
+// Billable checkbox.
+if ($showBillable)
+  $form->addInput(array('type'=>'checkbox','name'=>'billable','value'=>$cl_billable));
+
+// Paid status checkbox.
+if ($showPaidStatus)
+  $form->addInput(array('type'=>'checkbox','name'=>'paid','value'=>$cl_paid));
+
+// If we have time custom fields - add controls for them.
+if (isset($custom_fields) && $custom_fields->timeFields) {
+  foreach ($custom_fields->timeFields as $timeField) {
+    $field_name = 'time_field_'.$timeField['id'];
+    if ($timeField['type'] == CustomFields::TYPE_TEXT) {
+      $form->addInput(array('type'=>'text','name'=>$field_name,'value'=>$timeCustomFields[$timeField['id']]['value']));
+    } elseif ($timeField['type'] == CustomFields::TYPE_DROPDOWN) {
+      $form->addInput(array('type'=>'combobox','name'=>$field_name,
+      'data'=>CustomFields::getOptions($timeField['id']),
+      'value'=>$timeCustomFields[$timeField['id']]['value'],
+      'empty'=>array(''=>$i18n->get('dropdown.select'))));
+    }
+  }
+}
+
+// If we show project dropdown, add controls for project and client.
+$project_list = $client_list = array();
+if ($showProject) {
   // Dropdown for projects assigned to user.
-  $project_list = $user->getAssignedProjects();
+  $options['include_templates'] = $user->isPluginEnabled('tp') && $config->getDefinedValue('bind_templates_with_projects');
+  $project_list = $user->getAssignedProjects($options);
   $form->addInput(array('type'=>'combobox',
-    'onchange'=>'fillTaskDropdown(this.value);',
+    'onchange'=>'fillTaskDropdown(this.value);fillTemplateDropdown(this.value);prepopulateNote();',
     'name'=>'project',
-    'style'=>'width: 250px;',
     'value'=>$cl_project,
     'data'=>$project_list,
     'datakeys'=>array('id','name'),
     'empty'=>array(''=>$i18n->get('dropdown.select'))));
 
-  // Dropdown for clients if the clients plugin is enabled.
-  if ($user->isPluginEnabled('cl')) {
+  // Client dropdown.
+  if ($showClient) {
     $active_clients = ttGroupHelper::getActiveClients(true);
     // We need an array of assigned project ids to do some trimming.
     foreach($project_list as $project)
@@ -182,7 +215,6 @@ if (MODE_PROJECTS == $user->tracking_mode || MODE_PROJECTS_AND_TASKS == $user->t
     $form->addInput(array('type'=>'combobox',
       'onchange'=>'fillProjectDropdown(this.value);',
       'name'=>'client',
-      'style'=>'width: 250px;',
       'value'=>$cl_client,
       'data'=>$client_list,
       'datakeys'=>array('id', 'name'),
@@ -190,19 +222,20 @@ if (MODE_PROJECTS == $user->tracking_mode || MODE_PROJECTS_AND_TASKS == $user->t
   }
 }
 
-if (MODE_PROJECTS_AND_TASKS == $user->tracking_mode) {
+// Task dropdown.
+$task_list = array();
+if ($showTask) {
   $task_list = ttGroupHelper::getActiveTasks();
   $form->addInput(array('type'=>'combobox',
     'name'=>'task',
-    'style'=>'width: 250px;',
     'value'=>$cl_task,
     'data'=>$task_list,
     'datakeys'=>array('id','name'),
     'empty'=>array(''=>$i18n->get('dropdown.select'))));
 }
 
-// Add other controls.
-if ((TYPE_START_FINISH == $user->record_type) || (TYPE_ALL == $user->record_type)) {
+// Start and finish controls.
+if ($showStart) {
   $form->addInput(array('type'=>'text','name'=>'start','value'=>$cl_start,'onchange'=>"formDisable('start');"));
   $form->addInput(array('type'=>'text','name'=>'finish','value'=>$cl_finish,'onchange'=>"formDisable('finish');"));
   if ($user->punch_mode && !$user->canOverridePunchMode()) {
@@ -211,49 +244,69 @@ if ((TYPE_START_FINISH == $user->record_type) || (TYPE_ALL == $user->record_type
     $form->getElement('finish')->setEnabled(false);
   }
 }
-if ((TYPE_DURATION == $user->record_type) || (TYPE_ALL == $user->record_type))
-  $form->addInput(array('type'=>'text','name'=>'duration','value'=>$cl_duration,'onchange'=>"formDisable('duration');"));
+
+// Duration control.
+if ($showDuration) {
+  $placeholder = $user->getDecimalMark() == ',' ? str_replace('.', ',', $i18n->get('form.time.duration_placeholder')) : $i18n->get('form.time.duration_placeholder');
+  $form->addInput(array('type'=>'text','name'=>'duration','placeholder'=>$placeholder,'value'=>$cl_duration,'onchange'=>"formDisable('duration');"));
+}
+
+// Date field.
 $form->addInput(array('type'=>'datefield','name'=>'date','maxlength'=>'20','value'=>$cl_date));
-$form->addInput(array('type'=>'textarea','name'=>'note','style'=>'width: 250px; height: 200px;','value'=>$cl_note));
-// If we have custom fields - add controls for them.
-if ($custom_fields && $custom_fields->fields[0]) {
-  // Only one custom field is supported at this time.
-  if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT) {
-    $form->addInput(array('type'=>'text','name'=>'cf_1','value'=>$cl_cf_1));
-  } elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN) {
+
+// If we have templates, add a dropdown to select one.
+if ($user->isPluginEnabled('tp')){
+  $template_list = ttGroupHelper::getActiveTemplates();
+  if (count($template_list) >= 1) {
     $form->addInput(array('type'=>'combobox',
-      'name'=>'cf_1',
-      'style'=>'width: 250px;',
-      'value'=>$cl_cf_1,
-      'data'=>$custom_fields->options,
-      'empty' => array('' => $i18n->get('dropdown.select'))));
+      'onchange'=>'fillNote(this.value);',
+      'name'=>'template',
+      'data'=>$template_list,
+      'datakeys'=>array('id','name'),
+      'empty'=>array(''=>$i18n->get('dropdown.select'))));
+    $smarty->assign('template_dropdown', 1);
+    $smarty->assign('bind_templates_with_projects', $config->getDefinedValue('bind_templates_with_projects'));
+    $smarty->assign('prepopulate_note', $config->getDefinedValue('prepopulate_note'));
+    $smarty->assign('template_list', $template_list);
   }
 }
+
+// Note control.
+$form->addInput(array('type'=>'textarea','name'=>'note','value'=>$cl_note));
+
 // Hidden control for record id.
 $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$cl_id));
-if ($user->isPluginEnabled('iv'))
-  $form->addInput(array('type'=>'checkbox','name'=>'billable','value'=>$cl_billable));
-if ($user->can('manage_invoices') && $user->isPluginEnabled('ps'))
-  $form->addInput(array('type'=>'checkbox','name'=>'paid','value'=>$cl_paid));
+
+// A hidden control for today's date from user's browser.
 $form->addInput(array('type'=>'hidden','name'=>'browser_today','value'=>'')); // User current date, which gets filled in on btn_save or btn_copy click.
+
+// Copy button.
 $on_click_action = 'browser_today.value=get_date();';
 $form->addInput(array('type'=>'submit','name'=>'btn_copy','onclick'=>$on_click_action,'value'=>$i18n->get('button.copy')));
+
+// Save button.
 if ($confirm_save) $on_click_action .= 'return(confirmSave());';
 $form->addInput(array('type'=>'submit','name'=>'btn_save','onclick'=>$on_click_action,'value'=>$i18n->get('button.save')));
+
+// Delete button.
 $form->addInput(array('type'=>'submit','name'=>'btn_delete','value'=>$i18n->get('label.delete')));
 
 if ($request->isPost()) {
 
   // Validate user input.
-  if ($user->isPluginEnabled('cl') && $user->isPluginEnabled('cm') && !$cl_client)
+  if ($showClient && $user->isOptionEnabled('client_required') && !$cl_client)
     $err->add($i18n->get('error.client'));
-  if ($custom_fields) {
-    if (!ttValidString($cl_cf_1, !$custom_fields->fields[0]['required'])) $err->add($i18n->get('error.field'), $custom_fields->fields[0]['label']);
+  // Validate input in time custom fields.
+  if (isset($custom_fields) && $custom_fields->timeFields) {
+    foreach ($timeCustomFields as $timeField) {
+      // Validation is the same for text and dropdown fields.
+      if (!ttValidString($timeField['value'], !$timeField['required'])) $err->add($i18n->get('error.field'), htmlspecialchars($timeField['label']));
+    }
   }
-  if (MODE_PROJECTS == $user->tracking_mode || MODE_PROJECTS_AND_TASKS == $user->tracking_mode) {
+  if ($showProject) {
     if (!$cl_project) $err->add($i18n->get('error.project'));
   }
-  if (MODE_PROJECTS_AND_TASKS == $user->tracking_mode && $user->task_required) {
+  if ($showTask &&  $taskRequired) {
     if (!$cl_task) $err->add($i18n->get('error.task'));
   }
   if (!$cl_duration) {
@@ -269,11 +322,11 @@ if ($request->isPost()) {
           $err->add($i18n->get('error.interval'), $i18n->get('label.finish'), $i18n->get('label.start'));
       }
     } else {
-      if ((TYPE_START_FINISH == $user->record_type) || (TYPE_ALL == $user->record_type)) {
+      if ($showStart) {
         $err->add($i18n->get('error.empty'), $i18n->get('label.start'));
         $err->add($i18n->get('error.empty'), $i18n->get('label.finish'));
       }
-      if ((TYPE_DURATION == $user->record_type) || (TYPE_ALL == $user->record_type))
+      if ($showDuration)
         $err->add($i18n->get('error.empty'), $i18n->get('label.duration'));
     }
   } else {
@@ -282,16 +335,23 @@ if ($request->isPost()) {
   }
   if (!ttValidDate($cl_date)) $err->add($i18n->get('error.field'), $i18n->get('label.date'));
   if (!ttValidString($cl_note, true)) $err->add($i18n->get('error.field'), $i18n->get('label.note'));
+  if ($user->isPluginEnabled('tp') && !ttValidTemplateText($cl_note)) {
+    $err->add($i18n->get('error.field'), $i18n->get('label.note'));
+  }
   if (!ttTimeHelper::canAdd()) $err->add($i18n->get('error.expired'));
   // Finished validating user input.
 
   // This is a new date for the time record.
-  $new_date = new DateAndTime($user->date_format, $cl_date);
+  $new_date = null;
+  if ($err->no())
+    $new_date = new ttDate($cl_date, $user->getDateFormat());
 
   // Prohibit creating entries in future.
-  if (!$user->future_entries) {
-    $browser_today = new DateAndTime(DB_DATEFORMAT, $request->getParameter('browser_today', null));
-    if ($new_date->after($browser_today))
+  if ($err->no() && !$user->isOptionEnabled('future_entries')) {
+    $browser_today = new ttDate($request->getParameter('browser_today', null));
+    $server_tomorrow = new ttDate();
+    $server_tomorrow->incrementDay();
+    if ($new_date->after($browser_today) || $new_date->after($server_tomorrow))
       $err->add($i18n->get('error.future_date'));
   }
 
@@ -314,7 +374,7 @@ if ($request->isPost()) {
 
       // 3) Prohibit saving uncompleted unlocked entries when another uncompleted entry exists.
       $uncompleted = ($cl_finish == '' && $cl_duration == '');
-      if ($uncompleted) {
+      if ($uncompleted && $oneUncompleted) {
         $not_completed_rec = ttTimeHelper::getUncompleted($user_id);
         if ($not_completed_rec && ($time_rec['id'] <> $not_completed_rec['id'])) {
           // We have another not completed record.
@@ -325,7 +385,7 @@ if ($request->isPost()) {
 
     // Prohibit creating an overlapping record.
     if ($err->no()) {
-      if (ttTimeHelper::overlaps($user_id, $new_date->toString(DB_DATEFORMAT), $cl_start, $cl_finish, $cl_id))
+      if (ttTimeHelper::overlaps($user_id, $new_date->toString(), $cl_start, $cl_finish, $cl_id))
         $err->add($i18n->get('error.overlap'));
     }
 
@@ -333,8 +393,7 @@ if ($request->isPost()) {
     if ($err->no()) {
       $res = ttTimeHelper::update(array(
         'id'=>$cl_id,
-        'date'=>$new_date->toString(DB_DATEFORMAT),
-        'user_id'=>$user_id,
+        'date'=>$new_date->toString(),
         'client'=>$cl_client,
         'project'=>$cl_project,
         'task'=>$cl_task,
@@ -345,28 +404,20 @@ if ($request->isPost()) {
         'billable'=>$cl_billable,
         'paid'=>$cl_paid));
 
-      // If we have custom fields - update values.
-      if ($res && $custom_fields) {
-        if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT)
-          $res = $custom_fields->update($cl_id, $custom_fields->fields[0]['id'], null, $cl_cf_1);
-        elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN)
-          $res = $custom_fields->update($cl_id, $custom_fields->fields[0]['id'], $cl_cf_1, null);
+      // Update time custom fields if we have them.
+      if ($res && isset($custom_fields) && $custom_fields->timeFields) {
+        $res = $custom_fields->updateTimeFields($cl_id, $timeCustomFields);
       }
       if ($res)
       {
-		// $request is set to POST 
-		// for now using $_GET
-		if ($_GET["source"] == "report"){
-			header('Location: report.php');
-		} else {
-			header('Location: time.php?date='.$new_date->toString(DB_DATEFORMAT));
-		}
+        header('Location: time.php?date='.$new_date->toString());
         exit();
       }
+      $err->add($i18n->get('error.db'));
     }
   }
 
-  // Save as new record.
+  // Copy record.
   if ($request->getParameter('btn_copy')) {
     // We need to:
     // 1) Prohibit saving into locked range.
@@ -380,7 +431,7 @@ if ($request->isPost()) {
 
       // 2) Prohibit saving uncompleted unlocked entries when another uncompleted entry exists.
       $uncompleted = ($cl_finish == '' && $cl_duration == '');
-      if ($uncompleted) {
+      if ($uncompleted && $oneUncompleted) {
         $not_completed_rec = ttTimeHelper::getUncompleted($user_id);
         if ($not_completed_rec) {
           // We have another not completed record.
@@ -391,7 +442,7 @@ if ($request->isPost()) {
 
     // Prohibit creating an overlapping record.
     if ($err->no()) {
-      if (ttTimeHelper::overlaps($user_id, $new_date->toString(DB_DATEFORMAT), $cl_start, $cl_finish))
+      if (ttTimeHelper::overlaps($user_id, $new_date->toString(), $cl_start, $cl_finish))
         $err->add($i18n->get('error.overlap'));
     }
 
@@ -399,10 +450,7 @@ if ($request->isPost()) {
     if ($err->no()) {
 
       $id = ttTimeHelper::insert(array(
-        'date'=>$new_date->toString(DB_DATEFORMAT),
-        'user_id'=>$user_id,
-        'group_id'=>$user->getGroup(),
-        'org_id' => $user->org_id,
+        'date'=>$new_date->toString(),
         'client'=>$cl_client,
         'project'=>$cl_project,
         'task'=>$cl_task,
@@ -413,16 +461,13 @@ if ($request->isPost()) {
         'billable'=>$cl_billable,
         'paid'=>$cl_paid));
 
-      // Insert a custom field if we have it.
+      // Insert time custom fields if we have them.
       $res = true;
-      if ($id && $custom_fields && $cl_cf_1) {
-        if ($custom_fields->fields[0]['type'] == CustomFields::TYPE_TEXT)
-          $res = $custom_fields->insert($id, $custom_fields->fields[0]['id'], null, $cl_cf_1);
-        elseif ($custom_fields->fields[0]['type'] == CustomFields::TYPE_DROPDOWN)
-          $res = $custom_fields->insert($id, $custom_fields->fields[0]['id'], $cl_cf_1, null);
+      if ($id && isset($custom_fields) && $custom_fields->timeFields) {
+        $res = $custom_fields->insertTimeFields($id, $timeCustomFields);
       }
       if ($id && $res) {
-        header('Location: time.php?date='.$new_date->toString(DB_DATEFORMAT));
+        header('Location: time.php?date='.$new_date->toString());
         exit();
       }
       $err->add($i18n->get('error.db'));
@@ -439,6 +484,14 @@ if ($confirm_save) {
   $smarty->assign('confirm_save', true);
   $smarty->assign('entry_date', $cl_date);
 }
+$smarty->assign('show_client', $showClient);
+$smarty->assign('show_billable', $showBillable);
+$smarty->assign('show_paid_status', $showPaidStatus);
+$smarty->assign('show_project', $showProject);
+$smarty->assign('show_task', $showTask);
+$smarty->assign('task_required', $taskRequired);
+$smarty->assign('show_start', $showStart);
+$smarty->assign('show_duration', $showDuration);
 $smarty->assign('client_list', $client_list);
 $smarty->assign('project_list', $project_list);
 $smarty->assign('task_list', $task_list);
