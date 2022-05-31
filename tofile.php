@@ -221,7 +221,7 @@ if ('csv' == $type) {
     if ($bean->getAttribute('chpaid')) print ',"'.$i18n->get('label.paid').'"';
     if ($bean->getAttribute('chip')) print ',"'.$i18n->get('label.ip').'"';
     if ($bean->getAttribute('chinvoice')) print ',"'.$i18n->get('label.invoice').'"';
-	if ($bean->getAttribute('chbillable')) print ',"'.$i18n->get('label.billable').'"';
+	  if ($bean->getAttribute('chbillable')) print ',"'.$i18n->get('label.billable').'"';
     if ($bean->getAttribute('chtimesheet')) print ',"'.$i18n->get('label.timesheet').'"';
     print "\n";
 
@@ -272,7 +272,7 @@ if ('csv' == $type) {
         print ',"'.$ip.'"';
       }
       if ($bean->getAttribute('chinvoice')) print ',"'.ttNeutralizeForCsv($item['invoice']).'"';
-	  if ($bean->getAttribute('chbillable')) print ',"'.ttNeutralizeForCsv($item['billable']).'"';
+	    if ($bean->getAttribute('chbillable')) print ',"'.ttNeutralizeForCsv($item['billable']).'"';
       if ($bean->getAttribute('chtimesheet')) print ',"'.ttNeutralizeForCsv($item['timesheet_name']).'"';
       print "\n";
     }

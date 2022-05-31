@@ -1,7 +1,6 @@
 <?php
 /* Copyright (c) Anuko International Ltd. https://www.anuko.com
 License: See license.txt */
-
 require_once('initialize.php');
 import('form.Form');
 import('ttClientHelper');
@@ -26,10 +25,10 @@ if (!$client) {
 // End of access checks.
 
 $projects = ttGroupHelper::getActiveProjects();
-$cl_name = $cl_address = $cl_tax = $cl_status = null;
+$cl_name = $cl_address = $cl_tax = $cl_status = $cl_client_number = null;
 $cl_projects = array();
 if ($request->isPost()) {
-  $cl_number = trim($request->getParameter('clientnumber'));
+  $cl_client_number = trim($request->getParameter('client_number'));
   $cl_name = trim($request->getParameter('name'));
   $cl_address = trim($request->getParameter('address'));
   $cl_tax = trim($request->getParameter('tax'));
@@ -37,7 +36,7 @@ if ($request->isPost()) {
   $cl_projects = $request->getParameter('projects');
 } else {
   $client = ttClientHelper::getClient($cl_id, true);
-  $cl_number = $client['clientnumber'];
+  $cl_client_number = $client['client_number'];
   $cl_name = $client['name'];
   $cl_address = $client['address'];
   $cl_tax = $client['tax'];
@@ -52,7 +51,7 @@ $show_projects = (MODE_PROJECTS == $user->getTrackingMode() || MODE_PROJECTS_AND
 
 $form = new Form('clientForm');
 $form->addInput(array('type'=>'hidden','name'=>'id','value'=>$cl_id));
-$form->addInput(array('type'=>'text','name'=>'number','maxlength'=>'25','value'=>$cl_number));
+$form->addInput(array('type'=>'text','name'=>'client_number','maxlength'=>'25','value'=>$cl_client_number));
 $form->addInput(array('type'=>'text','name'=>'name','maxlength'=>'100','value'=>$cl_name));
 $form->addInput(array('type'=>'textarea','name'=>'address','maxlength'=>'255','value'=>$cl_address));
 $form->addInput(array('type'=>'floatfield','name'=>'tax','size'=>'10','format'=>'.2','value'=>$cl_tax));
@@ -65,7 +64,7 @@ $form->addInput(array('type'=>'submit','name'=>'btn_copy','value'=>$i18n->get('b
 
 if ($request->isPost()) {
   // Validate user input.
-  if (!ttValidInteger($cl_number)) $err->add($i18n->get('error.field'), $i18n->get('label.client_number'));
+  if (!ttValidInteger($cl_client_number)) $err->add($i18n->get('error.field'), $i18n->get('label.client_number'));
   if (!ttValidString($cl_name)) $err->add($i18n->get('error.field'), $i18n->get('label.client_name'));
   if (!ttValidString($cl_address, true)) $err->add($i18n->get('error.field'), $i18n->get('label.client_address'));
   if (!ttValidFloat($cl_tax, true)) $err->add($i18n->get('error.field'), $i18n->get('label.tax'));
@@ -77,7 +76,7 @@ if ($request->isPost()) {
       if (($client && ($cl_id == $client['id'])) || !$client) {
         if (ttClientHelper::update(array(
           'id' => $cl_id,
-          'client_number' => $cl_number,
+          'client_number' => $cl_client_number,
           'name' => $cl_name,
           'address' => $cl_address,
           'tax' => $cl_tax,

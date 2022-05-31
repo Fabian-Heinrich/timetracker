@@ -465,6 +465,12 @@ License: See license.txt *}
     <td class="td-with-input">{$forms.reportForm.chinvoice.control}</td>
   </tr>
   <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
+  <tr class = "small-screen-label"><td><label for="chinvoice">{$i18n.label.billable}:</label></td></tr>
+  <tr>
+    <td class="large-screen-label"><label for="chbillable">{$i18n.label.billable}:</label></td>
+    <td class="td-with-input">{$forms.reportForm.chbillable.control}</td>
+  </tr>
+  <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
 {/if}
 {if $show_timesheet_checkbox}
   <tr class = "small-screen-label"><td><label for="chtimesheet">{$i18n.label.timesheet}:</label></td></tr>

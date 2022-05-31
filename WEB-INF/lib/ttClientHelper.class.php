@@ -181,9 +181,9 @@ class ttClientHelper {
     $tax = str_replace(',', '.', $tax);
     if ($tax == '') $tax = 0;
 
-    $sql = "insert into tt_clients (group_id, org_id, number, name, address, tax, projects, status)".
+    $sql = "insert into tt_clients (group_id, org_id, client_number, name, address, tax, projects, status)".
       " values ($group_id, $org_id, ".$mdb2->quote($client_number).", ".$mdb2->quote($name).", ".$mdb2->quote($address).", $tax, ".$mdb2->quote($comma_separated).", ".$mdb2->quote($status).")";
-
+    
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       return false;
@@ -227,6 +227,7 @@ class ttClientHelper {
     // Insert client to project binds into tt_client_project_binds table.
     $sql = "delete from tt_client_project_binds".
       " where client_id = $id and group_id = $group_id and org_id = $org_id";
+	  
     $affected = $mdb2->exec($sql);
     if (is_a($affected, 'PEAR_Error'))
       die($affected->getMessage());

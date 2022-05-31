@@ -18,7 +18,7 @@ License: See license.txt *}
   </tr>
     {foreach $active_clients as $client}
   <tr>
-    <td class="text-cell">{$client.number|escape}</td>
+    <td class="text-cell">{$client.client_number|escape}</td>
     <td class="text-cell">{$client.name|escape}</td>
     <td class="text-cell">{$client.address|escape}</td>
     <td><a href="client_edit.php?id={$client.id}"><img class="table_icon" alt="{$i18n.label.edit}" src="img/icon-edit.png"></a></td>
@@ -40,7 +40,7 @@ License: See license.txt *}
   </tr>
     {foreach $inactive_clients as $client}
   <tr>
-    <td class="text-cell">{$client.number|escape}</td>
+    <td class="text-cell">{$client.client_number|escape}</td>
     <td class="text-cell">{$client.name|escape}</td>
     <td class="text-cell">{$client.address|escape}</td>
     <td><a href="client_edit.php?id={$client.id}"><img class="table_icon" alt="{$i18n.label.edit}" src="img/icon-edit.png"></a></td>
@@ -59,7 +59,7 @@ License: See license.txt *}
   </tr>
   {foreach $active_clients as $client}
   <tr>
-    <td class="text-cell">{$client.number|escape}</td>
+    <td class="text-cell">{$client.client_number|escape}</td>
     <td class="text-cell">{$client.name|escape}</td>
     <td class="text-cell">{$client.address|escape}</td>
   </tr>

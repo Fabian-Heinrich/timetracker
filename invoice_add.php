@@ -19,7 +19,7 @@ if (!$user->isPluginEnabled('iv')) {
 }
 // End of access checks.
 
-$cl_date = $cl_client = $cl_project = $cl_number = $cl_start = $cl_finish = null;
+$cl_date = $cl_client = $cl_project = $cl_client_number = $cl_start = $cl_finish = null;
 if ($request->isPost()) {
   $cl_date = $request->getParameter('date');
   $cl_client = (int)$request->getParameter('client');

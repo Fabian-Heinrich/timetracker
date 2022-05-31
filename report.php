@@ -290,6 +290,7 @@ if (isset($custom_fields) && $custom_fields->userFields) {
   }
 }
 if ($bean->getAttribute('chclient')) $colspan++;
+if ($bean->getAttribute('chclientnumber')) $colspan++;
 if ($bean->getAttribute('chproject')) $colspan++;
 if ($bean->getAttribute('chtask')) $colspan++;
 if (isset($custom_fields) && $custom_fields->timeFields) {

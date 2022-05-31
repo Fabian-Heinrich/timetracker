@@ -19,10 +19,10 @@ if (!$user->isPluginEnabled('cl')) {
 
 $projects = ttGroupHelper::getActiveProjects();
 
-$cl_name = $cl_address = $cl_tax = '';
+$cl_name = $cl_address = $cl_tax = $cl_client_number = null;
 $cl_projects = array();
 if ($request->isPost()) {
-  $cl_number = trim($request->getParameter('number'));
+  $cl_client_number = trim($request->getParameter('client_number'));
   $cl_name = trim($request->getParameter('name'));
   $cl_address = trim($request->getParameter('address'));
   $cl_tax = $request->getParameter('tax');
@@ -36,7 +36,7 @@ if ($request->isPost()) {
 $show_projects = (MODE_PROJECTS == $user->getTrackingMode() || MODE_PROJECTS_AND_TASKS == $user->getTrackingMode()) && count($projects) > 0;
 
 $form = new Form('clientForm');
-$form->addInput(array('type'=>'text','maxlength'=>'25','name'=>'number','value'=>$cl_number));
+$form->addInput(array('type'=>'text','maxlength'=>'25','name'=>'client_number','value'=>$cl_client_number));
 $form->addInput(array('type'=>'text','maxlength'=>'100','name'=>'name','value'=>$cl_name));
 $form->addInput(array('type'=>'textarea','name'=>'address','maxlength'=>'255','value'=>$cl_address));
 $form->addInput(array('type'=>'floatfield','name'=>'tax','size'=>'10','format'=>'.2','value'=>$cl_tax));
@@ -46,7 +46,7 @@ $form->addInput(array('type'=>'submit','name'=>'btn_submit','value'=>$i18n->get(
 
 if ($request->isPost()) {
   // Validate user input.
-  if (!ttValidInteger($cl_number)) $err->add($i18n->get('error.field'), $i18n->get('label.client_number'));
+  if (!ttValidInteger($cl_client_number)) $err->add($i18n->get('error.field'), $i18n->get('label.client_number'));
   if (!ttValidString($cl_name)) $err->add($i18n->get('error.field'), $i18n->get('label.client_name'));
   if (!ttValidString($cl_address, true)) $err->add($i18n->get('error.field'), $i18n->get('label.client_address'));
   if (!ttValidFloat($cl_tax, true)) $err->add($i18n->get('error.field'), $i18n->get('label.tax'));
@@ -54,7 +54,7 @@ if ($request->isPost()) {
   if ($err->no()) {
     if (!ttClientHelper::getClientByName($cl_name)) {
       if (ttClientHelper::insert(array('name' => $cl_name,
-	    'client_number' => $cl_number,
+	    'client_number' => $cl_client_number,
         'address' => $cl_address,
         'tax' => $cl_tax,
         'projects' => $cl_projects,

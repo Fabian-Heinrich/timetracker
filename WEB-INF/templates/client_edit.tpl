@@ -9,8 +9,8 @@ License: See license.txt *}
     <td class="td-with-input">{$forms.clientForm.name.control}</td>
   </tr>
   <tr>
-    <td class="large-screen-label"><label for="number">{$i18n.label.client_number} (*):</label></td>
-    <td class="td-with-input">{$forms.clientForm.number.control}</td>
+    <td class="large-screen-label"><label for="client_number">{$i18n.label.client_number} (*):</label></td>
+    <td class="td-with-input">{$forms.clientForm.client_number.control}</td>
   </tr>
   <tr><td><div class="small-screen-form-control-separator"></div></td></tr>
   <tr class = "small-screen-label"><td><label for="address">{$i18n.label.client_address}:</label></td></tr>
